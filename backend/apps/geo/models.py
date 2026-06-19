@@ -1,0 +1,55 @@
+"""geo/models.py — HexCell, AwsStation, AwsObservation stubs (Phase 1 fills these)."""
+from django.contrib.gis.db import models
+
+
+class HexCell(models.Model):
+    """H3 resolution-9 hexagon cell (~174m edge length)."""
+    h3_index = models.CharField(max_length=20, primary_key=True)  # H3 cell index string
+    geom = models.PolygonField(srid=4326, null=True, blank=True)  # boundary polygon
+    centroid = models.PointField(srid=4326, null=True, blank=True)
+    # FSI inputs stored as JSON
+    fsi_inputs = models.JSONField(default=dict, blank=True)
+    fsi_score = models.FloatField(default=0.0)  # 0..1
+    ward_name = models.CharField(max_length=100, blank=True, default="")
+
+    class Meta:
+        db_table = "geo_hex_cell"
+        indexes = [
+            models.Index(fields=["fsi_score"]),
+        ]
+
+    def __str__(self):
+        return f"HexCell({self.h3_index})"
+
+
+class AwsStation(models.Model):
+    """Automatic Weather Station (rain gauge)."""
+    station_id = models.CharField(max_length=50, primary_key=True)
+    name = models.CharField(max_length=200)
+    geom = models.PointField(srid=4326)
+    hex = models.ForeignKey(HexCell, on_delete=models.SET_NULL, null=True, blank=True,
+                            related_name="stations")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "geo_aws_station"
+
+    def __str__(self):
+        return f"{self.station_id} — {self.name}"
+
+
+class AwsObservation(models.Model):
+    """Observed rainfall readings from an AWS station."""
+    station = models.ForeignKey(AwsStation, on_delete=models.CASCADE, related_name="observations")
+    ts = models.DateTimeField(db_index=True)
+    rain_1h = models.FloatField(null=True, blank=True)
+    rain_3h = models.FloatField(null=True, blank=True)
+    rain_24h = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        db_table = "geo_aws_observation"
+        unique_together = ("station", "ts")
+        ordering = ["-ts"]
+
+    def __str__(self):
+        return f"Obs({self.station_id}, {self.ts})"

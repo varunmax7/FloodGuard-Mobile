@@ -1,0 +1,138 @@
+name: FloodGuard CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+  FLUTTER_VERSION: "3.24.0"
+
+jobs:
+  # ── Backend: Lint + Test ─────────────────────────────────────────────────────
+  backend-lint-test:
+    name: Backend — Lint & Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: floodguard_test
+          POSTGRES_USER: floodguard
+          POSTGRES_PASSWORD: floodguard
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install GDAL system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev libproj-dev
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint (flake8)
+        working-directory: backend
+        run: make lint
+
+      - name: Run tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgis://floodguard:floodguard@localhost:5432/floodguard_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: ci-secret-key
+          DEBUG: "True"
+        run: make test
+
+  # ── Mobile: Analyze ───────────────────────────────────────────────────────────
+  mobile-analyze:
+    name: Mobile — Flutter Analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get Flutter dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Run Flutter analyze
+        working-directory: mobile
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        working-directory: mobile
+        run: flutter test
+
+  # ── Admin: Lint + Build ───────────────────────────────────────────────────────
+  admin-lint-build:
+    name: Admin — Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Install admin dependencies
+        working-directory: admin
+        run: npm ci
+
+      - name: Lint admin
+        working-directory: admin
+        run: npm run lint
+
+      - name: Build admin
+        working-directory: admin
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: http://localhost:8000
+          VITE_MAPLIBRE_STYLE_URL: https://demotiles.maplibre.org/style.json
+
+  # ── Docker: Compose check ─────────────────────────────────────────────────────
+  docker-compose-check:
+    name: Docker Compose — Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker-compose.yml
+        run: docker compose config --quiet
