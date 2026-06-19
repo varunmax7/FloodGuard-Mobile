@@ -104,7 +104,7 @@ npm run dev
 |-----|-------|--------|
 | p0 | Monorepo Scaffold & Infra | ✅ |
 | p1 | Geospatial Data Layer (PostGIS + H3) | ✅ |
-| p2 | Ingest Pipeline (ECMWF + Radar) | ⬜ |
+| p2 | Auth (Phone OTP) & Saved Places API | ✅ |
 | p3 | Risk Engine | ⬜ |
 | p4 | REST API Layer | ⬜ |
 | p5 | Flutter Auth + Navigation Shell | ⬜ |

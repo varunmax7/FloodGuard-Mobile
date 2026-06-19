@@ -1,14 +1,7 @@
-"""accounts/devices_urls.py — FCM token registration routes."""
+"""accounts/devices_urls.py — /api/v1/devices/ routes."""
 from django.urls import path
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-
-
-@api_view(["POST"])
-def register_token(request):
-    return Response({"detail": "Not implemented yet — Phase 5"}, status=501)
-
+from .views import register_device_token
 
 urlpatterns = [
-    path("token/", register_token, name="device-token"),
+    path("token/", register_device_token, name="device-token"),
 ]

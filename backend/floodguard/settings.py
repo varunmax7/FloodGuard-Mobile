@@ -26,6 +26,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "django_filters",
     "django_celery_beat",
@@ -131,6 +132,16 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "200/hour",
+        "user": "2000/hour",
+        "otp_request": "5/hour",
+        "otp_verify": "10/hour",
+    },
 }
 
 # ── SimpleJWT ─────────────────────────────────────────────────────────────────
@@ -175,6 +186,7 @@ if AWS_ACCESS_KEY_ID and AWS_S3_ENDPOINT_URL:
 
 # ── Firebase ──────────────────────────────────────────────────────────────────
 FIREBASE_CREDENTIALS_PATH = config("FIREBASE_CREDENTIALS_PATH", default="")
+FIREBASE_CREDENTIALS_JSON = config("FIREBASE_CREDENTIALS_JSON", default="")
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 LOGGING = {

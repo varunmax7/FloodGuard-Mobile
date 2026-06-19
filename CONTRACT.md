@@ -72,6 +72,36 @@ confidence = f(model_agreement, station_density_nearby, forecast_lead_time)
 
 ---
 
+## §3.2a Auth Flow (chosen in Phase 2)
+
+Firebase phone OTP is handled **entirely client-side** (Flutter Firebase SDK).
+
+```
+Client                        Backend
+  |                              |
+  |-- Firebase phone OTP ------> Firebase (SMS sent)
+  |<- Firebase ID token ------   Firebase
+  |                              |
+  |-- POST /auth/otp/request --> (no-op, validates phone format)
+  |<- {request_id}              |
+  |                              |
+  |-- POST /auth/otp/verify  --> verify_id_token(Firebase Admin SDK)
+  |   {id_token, fcm_token}      upsert User by phone
+  |<- {access, refresh, user}    store fcm_token
+```
+
+**DEV MODE** (no `FIREBASE_CREDENTIALS_PATH` / `FIREBASE_CREDENTIALS_JSON` set):
+- Pass an E.164 phone number directly as `id_token` (e.g. `+919999999999`)
+- Backend skips Firebase and treats it as the verified phone number
+- Never use in production
+
+**`/auth/otp/request`** accepts `{phone}` and returns `{request_id: "firebase-client-side"}`.
+The `request_id` is a correlation hint only — no SMS is sent by the backend.
+
+**`/auth/otp/verify`** body is `{id_token, fcm_token?}` (not `{request_id, code}` as in original CONTRACT stub).
+
+---
+
 ## §3.3 Public API (Mobile) — Base `/api/v1`
 
 | Method | Path | Request | Response |
@@ -141,3 +171,4 @@ confidence = f(model_agreement, station_density_nearby, forecast_lead_time)
 |-------|------|--------|--------|
 | p0 | 2026-06-19 | Initial contract seeded from playbook §3 | Bootstrap |
 | p1 | 2026-06-19 | All §3.1 models implemented with GeoDjango + GIST indexes; `SavedPlace.hex` FK added (was stubbed); `unique_together` → `UniqueConstraint` on AwsObservation, RiskSnapshot, AlertDelivery; `(hex, created_at)` index added to FloodReport; `(station, ts)` index added to AwsObservation | Phase 1 |
+| p2 | 2026-06-20 | Auth flow documented (§3.2a): Firebase client-side OTP → ID token → JWT. `/auth/otp/verify` body changed from `{request_id, code, fcm_token}` to `{id_token, fcm_token}`. Dev mode bypass added. `token_blacklist` app added. Throttle rates: otp_request=5/hr, otp_verify=10/hr. | Phase 2 |

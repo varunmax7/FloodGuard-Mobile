@@ -1,18 +1,6 @@
-"""accounts/places_urls.py — saved places routes."""
+"""accounts/places_urls.py — /api/v1/places/ routes."""
 from django.urls import path
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-
-
-@api_view(["GET", "POST"])
-def places_list(request):
-    return Response({"detail": "Not implemented yet — Phase 5"}, status=501)
-
-
-@api_view(["PATCH"])
-def place_detail(request, pk):
-    return Response({"detail": "Not implemented yet — Phase 5"}, status=501)
-
+from .views import place_detail, places_list
 
 urlpatterns = [
     path("", places_list, name="places-list"),
