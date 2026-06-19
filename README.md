@@ -19,18 +19,55 @@ floodguard/
 ## Quickstart
 
 ### Prerequisites
-- Docker Desktop ≥ 4.25
 - Flutter 3.24+ (`flutter doctor` clean)
 - Node.js 20 LTS
 - Android Studio / Xcode for mobile emulator
+- PostgreSQL 16 + PostGIS (local dev) **or** Docker Desktop (team/production)
 
-### 1 · Start backend services
+### 1 · Start backend services (local PostgreSQL — no Docker needed for dev)
 
 ```bash
-cp .env.example .env   # Fill in secrets
-docker compose up -d   # db, redis, web, worker, beat
-docker compose logs -f web
+# Install PostgreSQL + PostGIS once
+brew install postgresql@16 postgis
+brew services start postgresql@16
+
+# Create DB
+psql postgres -c "CREATE USER floodguard WITH PASSWORD 'floodguard';"
+psql postgres -c "CREATE DATABASE floodguard OWNER floodguard;"
+psql floodguard -c "CREATE EXTENSION postgis;"
+
+# Install Python deps
+cd backend
+pip install -r requirements.txt
+
+# Run migrations + start server
+python manage.py migrate
+python manage.py createsuperuser   # phone number + password
+python manage.py runserver
+# Admin → http://localhost:8000/admin
 ```
+
+---
+
+> ### 🐳 Docker — When You Need It
+>
+> Docker is **not required** during local development (Phases 0–12).
+> Install and use Docker when you reach these milestones:
+>
+> | Milestone | Why Docker is needed |
+> |-----------|----------------------|
+> | **Phase 13 — Production deploy** | Railway deployment uses the Docker image |
+> | **Running Celery worker + beat locally** | Need Redis + worker + beat all running together |
+> | **Onboarding a new team member** | `docker compose up` gives everyone the same environment instantly |
+> | **CI/CD pipeline** | GitHub Actions builds and pushes the Docker image on tag |
+>
+> When you're ready: `brew install --cask docker`, open Docker Desktop, then:
+> ```bash
+> cp .env.example .env
+> docker compose up -d   # db, redis, web, worker, beat
+> ```
+
+---
 
 ### 2 · Run Flutter app
 
@@ -66,7 +103,7 @@ npm run dev
 | Tag | Phase | Status |
 |-----|-------|--------|
 | p0 | Monorepo Scaffold & Infra | ✅ |
-| p1 | Geospatial Data Layer (PostGIS + H3) | ⬜ |
+| p1 | Geospatial Data Layer (PostGIS + H3) | ✅ |
 | p2 | Ingest Pipeline (ECMWF + Radar) | ⬜ |
 | p3 | Risk Engine | ⬜ |
 | p4 | REST API Layer | ⬜ |
