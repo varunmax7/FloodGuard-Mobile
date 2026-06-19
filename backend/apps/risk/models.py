@@ -24,8 +24,10 @@ class RiskSnapshot(models.Model):
 
     class Meta:
         db_table = "risk_snapshot"
-        unique_together = ("hex", "ts")
         ordering = ["-ts"]
+        constraints = [
+            models.UniqueConstraint(fields=["hex", "ts"], name="risk_snapshot_hex_ts_uniq"),
+        ]
         indexes = [
             models.Index(fields=["ts", "risk_level"]),
         ]

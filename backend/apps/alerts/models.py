@@ -52,7 +52,9 @@ class AlertDelivery(models.Model):
 
     class Meta:
         db_table = "alerts_delivery"
-        unique_together = ("alert", "user")
+        constraints = [
+            models.UniqueConstraint(fields=["alert", "user"], name="alerts_delivery_alert_user_uniq"),
+        ]
 
     def __str__(self):
         return f"Delivery({self.alert_id}, {self.user_id}, {self.status})"

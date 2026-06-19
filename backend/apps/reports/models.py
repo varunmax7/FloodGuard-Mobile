@@ -47,6 +47,7 @@ class FloodReport(models.Model):
         indexes = [
             models.Index(fields=["status"]),
             models.Index(fields=["observed_at"]),
+            models.Index(fields=["hex", "created_at"]),
         ]
 
     def __str__(self):

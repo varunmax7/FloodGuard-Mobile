@@ -1,4 +1,4 @@
-.PHONY: run migrate makemigrations test lint format shell createsuperuser collectstatic
+.PHONY: run migrate makemigrations build-hexgrid load-fsi test lint format shell createsuperuser collectstatic
 
 # ── Dev server ────────────────────────────────────────────────────────────────
 run:
@@ -11,9 +11,16 @@ migrate:
 makemigrations:
 	python manage.py makemigrations
 
+# ── Geo management ───────────────────────────────────────────────────────────
+build-hexgrid:
+	python manage.py build_hexgrid
+
+load-fsi:
+	python manage.py load_fsi --layers $(LAYERS)
+
 # ── Testing ───────────────────────────────────────────────────────────────────
 test:
-	pytest --tb=short -q
+	pytest tests/ --tb=short -q
 
 test-v:
 	pytest --tb=long -v

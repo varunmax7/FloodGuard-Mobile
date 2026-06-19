@@ -140,3 +140,4 @@ confidence = f(model_agreement, station_density_nearby, forecast_lead_time)
 | Phase | Date | Change | Author |
 |-------|------|--------|--------|
 | p0 | 2026-06-19 | Initial contract seeded from playbook §3 | Bootstrap |
+| p1 | 2026-06-19 | All §3.1 models implemented with GeoDjango + GIST indexes; `SavedPlace.hex` FK added (was stubbed); `unique_together` → `UniqueConstraint` on AwsObservation, RiskSnapshot, AlertDelivery; `(hex, created_at)` index added to FloodReport; `(station, ts)` index added to AwsObservation | Phase 1 |

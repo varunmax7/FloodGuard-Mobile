@@ -48,8 +48,13 @@ class AwsObservation(models.Model):
 
     class Meta:
         db_table = "geo_aws_observation"
-        unique_together = ("station", "ts")
         ordering = ["-ts"]
+        constraints = [
+            models.UniqueConstraint(fields=["station", "ts"], name="geo_awsobs_station_ts_uniq"),
+        ]
+        indexes = [
+            models.Index(fields=["station", "ts"]),
+        ]
 
     def __str__(self):
         return f"Obs({self.station_id}, {self.ts})"

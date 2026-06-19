@@ -58,7 +58,10 @@ class SavedPlace(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="saved_places")
     label = models.CharField(max_length=10, choices=LABEL_CHOICES)
     geom = models.PointField(srid=4326)
-    # hex FK added in Phase 1 when HexCell model exists
+    hex = models.ForeignKey(
+        "geo.HexCell", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="saved_places",
+    )
     notify = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
