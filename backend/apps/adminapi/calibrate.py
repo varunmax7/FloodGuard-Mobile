@@ -97,10 +97,11 @@ def preview(request):
     date_str = request.data.get("date")
 
     if date_str:
+        from datetime import datetime as dt
         from django.utils.dateparse import parse_date
         d = parse_date(date_str)
         if d:
-            ts_from = timezone.datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+            ts_from = timezone.make_aware(dt(d.year, d.month, d.day))
             ts_to   = ts_from + timedelta(days=1)
         else:
             ts_to   = timezone.now()

@@ -25,8 +25,8 @@ def export_query(request):
     Streams the requested dataset as CSV or GeoJSON attachment.
     """
     t_from, t_to = _range(request)
-    fmt   = request.query_params.get("format", "csv").lower()
-    dtype = request.query_params.get("type",   "reports").lower()
+    fmt   = request.query_params.get("fmt",  "csv").lower()
+    dtype = request.query_params.get("type", "reports").lower()
 
     if dtype == "risk":
         return _risk(t_from, t_to, fmt)

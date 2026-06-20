@@ -24,8 +24,12 @@ class Command(BaseCommand):
             defaults={
                 "geom":      Polygon.from_bbox((78.40, 17.40, 78.50, 17.50)),
                 "centroid":  Point(78.45, 17.45),
-                "fsi_score": 0.72,
+                "fsi_score": 0.82,
                 "ward_name": "Kondapur",
+                "fsi_inputs": {
+                    "twi": 0.9, "depression_depth": 0.8, "hand": 0.85,
+                    "dist_to_water": 0.75, "slope": 0.7, "imperviousness": 0.8,
+                },
             },
         )
         self.stdout.write(f"  hex {hex_.h3_index}")

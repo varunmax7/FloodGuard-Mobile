@@ -5,7 +5,7 @@ import Layout from '../components/Layout'
 const BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000/api/v1'
 
 function buildUrl(type: string, format: string, from: string, to: string) {
-  const p = new URLSearchParams({ type, format })
+  const p = new URLSearchParams({ type, fmt: format })
   if (from) p.set('from', new Date(from).toISOString())
   if (to)   p.set('to',   new Date(to).toISOString())
   return `${BASE}/admin/export/?${p}`
