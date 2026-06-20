@@ -162,6 +162,10 @@ CORS_ALLOWED_ORIGINS = config(
 ).split(",")
 CORS_ALLOW_CREDENTIALS = True
 
+# Allow any localhost port in dev (Flutter web uses a random port)
+if DEBUG:
+    CORS_ALLOWED_ORIGIN_REGEXES = [r"^http://localhost:\d+$"]
+
 # ── Celery ────────────────────────────────────────────────────────────────────
 CELERY_BROKER_URL = config("REDIS_URL", default="redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = "django-db"
