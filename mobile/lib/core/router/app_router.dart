@@ -1,14 +1,18 @@
-/// go_router — 5-tab shell + sub-routes. Home wired to live data in Phase 5.
+/// go_router — 5-tab shell + sub-routes.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../design/theme/app_theme.dart';
-import '../../design/widgets/fg_app_header.dart';
+import '../../features/alerts/alerts_screen.dart';
 import '../../features/area_detail/area_detail_screen.dart';
+import '../../features/auth/auth_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/map/map_screen.dart';
+import '../../features/radar/radar_screen.dart';
+import '../../features/report/report_screen.dart';
+import '../../features/settings/settings_screen.dart';
 
 class AppRoutes {
   static const home = '/';
@@ -17,6 +21,7 @@ class AppRoutes {
   static const alerts = '/alerts';
   static const report = '/report';
   static const settings = '/settings';
+  static const auth = '/auth';
   static const areaDetail = '/area/:h3Index';
   static const reportsNearby = '/reports/nearby';
 }
@@ -47,16 +52,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: AppRoutes.radar,
             name: 'radar',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: _TabPlaceholder(title: 'Live Radar', icon: Icons.radar_outlined),
+              child: RadarScreen(),
             ),
           ),
           GoRoute(
             path: AppRoutes.alerts,
             name: 'alerts',
             pageBuilder: (context, state) => NoTransitionPage(
-              child: _TabPlaceholder(
-                title: 'Alerts',
-                icon: Icons.notifications_outlined,
+              child: AlertsScreen(
                 focusH3: state.uri.queryParameters['focus'],
               ),
             ),
@@ -65,29 +68,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: AppRoutes.report,
             name: 'report',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: _TabPlaceholder(title: 'Report Flood', icon: Icons.add_circle_outline),
+              child: ReportScreen(),
             ),
           ),
         ],
       ),
-      // Sub-routes (outside shell — full-screen)
+      // Full-screen sub-routes (outside bottom-nav shell)
       GoRoute(
         path: AppRoutes.settings,
         name: 'settings',
-        builder: (context, state) =>
-            const _FullScreenPlaceholder(title: 'Settings'),
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.auth,
+        name: 'auth',
+        builder: (context, state) => const AuthScreen(),
       ),
       GoRoute(
         path: AppRoutes.areaDetail,
         name: 'areaDetail',
         builder: (context, state) {
           final h3 = state.pathParameters['h3Index'] ?? '';
-          final lat = double.tryParse(
-                  state.uri.queryParameters['lat'] ?? '') ??
-              17.3850;
-          final lng = double.tryParse(
-                  state.uri.queryParameters['lng'] ?? '') ??
-              78.4867;
+          final lat =
+              double.tryParse(state.uri.queryParameters['lat'] ?? '') ??
+                  17.3850;
+          final lng =
+              double.tryParse(state.uri.queryParameters['lng'] ?? '') ??
+                  78.4867;
           return AreaDetailScreen(h3Index: h3, lat: lat, lng: lng);
         },
       ),
@@ -135,52 +142,6 @@ class _ShellScaffold extends StatelessWidget {
                   label: t.label,
                 ))
             .toList(),
-      ),
-    );
-  }
-}
-
-// ── Placeholder screens (replaced in Phase 6–9) ───────────────────────────────
-
-class _TabPlaceholder extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final String? focusH3;
-
-  const _TabPlaceholder({required this.title, required this.icon, this.focusH3});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: FgAppHeader(key: ValueKey(title)),
-      backgroundColor: const Color(0xFFF1F5F9),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 72, color: AppColors.blue600.withAlpha(77)),
-            const SizedBox(height: 16),
-            Text(title,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineMedium
-                    ?.copyWith(color: AppColors.textPrimary)),
-            const SizedBox(height: 8),
-            Text(
-              'Coming in Phase 6–9',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyLarge
-                  ?.copyWith(color: AppColors.textMuted),
-            ),
-            if (focusH3 != null) ...[
-              const SizedBox(height: 8),
-              Text('Focus: $focusH3',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textMuted)),
-            ],
-          ],
-        ),
       ),
     );
   }
