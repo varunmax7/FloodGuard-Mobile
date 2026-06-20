@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../design/theme/app_theme.dart';
 import '../../design/widgets/fg_app_header.dart';
+import '../../features/area_detail/area_detail_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/map/map_screen.dart';
 
@@ -79,9 +80,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.areaDetail,
         name: 'areaDetail',
-        builder: (context, state) => _FullScreenPlaceholder(
-          title: 'Area Detail — ${state.pathParameters['h3Index']}',
-        ),
+        builder: (context, state) {
+          final h3 = state.pathParameters['h3Index'] ?? '';
+          final lat = double.tryParse(
+                  state.uri.queryParameters['lat'] ?? '') ??
+              17.3850;
+          final lng = double.tryParse(
+                  state.uri.queryParameters['lng'] ?? '') ??
+              78.4867;
+          return AreaDetailScreen(h3Index: h3, lat: lat, lng: lng);
+        },
       ),
       GoRoute(
         path: AppRoutes.reportsNearby,

@@ -63,4 +63,22 @@ class FloodGuardApi {
   Future<void> updateDeviceToken(String fcmToken) async {
     await _dio.post<void>('/devices/token/', data: {'fcm_token': fcmToken});
   }
+
+  Future<List<dynamic>> getReportsNearby({
+    required double lat,
+    required double lng,
+    int radiusM = 1000,
+    int sinceMin = 60,
+  }) async {
+    final res = await _dio.get<List<dynamic>>(
+      '/reports/nearby/',
+      queryParameters: {
+        'lat': lat,
+        'lng': lng,
+        'radius_m': radiusM,
+        'since_min': sinceMin,
+      },
+    );
+    return res.data ?? [];
+  }
 }

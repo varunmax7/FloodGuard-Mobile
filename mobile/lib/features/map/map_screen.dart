@@ -45,6 +45,8 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
   MapLibreMapController? _ctrl;
   String _activeLayer = 'risk'; // 'risk' | 'radar'
   Map<String, dynamic>? _locationData;
+  double? _locationLat;
+  double? _locationLng;
   bool _fetchingHexes = false;
   bool _fetchingLocation = false;
   Timer? _debounce;
@@ -204,7 +206,13 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
 
       final api = ref.read(apiProvider);
       final data = await api.getRiskLocation(pos.latitude, pos.longitude);
-      if (mounted) setState(() => _locationData = data);
+      if (mounted) {
+        setState(() {
+          _locationData = data;
+          _locationLat = pos.latitude;
+          _locationLng = pos.longitude;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -225,14 +233,25 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
           await api.getRiskLocation(coords.latitude, coords.longitude);
       final h3 = data['h3_index'] as String?;
       if (h3 != null && mounted) {
-        setState(() => _locationData = data);
+        setState(() {
+          _locationData = data;
+          _locationLat = coords.latitude;
+          _locationLng = coords.longitude;
+        });
       }
     } catch (_) {}
   }
 
   void _viewAreaDetail() {
     final h3 = _locationData?['h3_index'] as String?;
-    if (h3 != null) context.push('/area/$h3');
+    if (h3 == null) return;
+    final lat = _locationLat ?? 17.3850;
+    final lng = _locationLng ?? 78.4867;
+    final uri = Uri(
+      path: '/area/$h3',
+      queryParameters: {'lat': lat.toString(), 'lng': lng.toString()},
+    );
+    context.push(uri.toString());
   }
 
   // ── Search ────────────────────────────────────────────────────────────────────
