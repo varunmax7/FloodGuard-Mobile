@@ -1,8 +1,10 @@
 """
 IMD Doppler radar frame parser.
 
-MOCK mode: generates a synthetic radar frame for Hyderabad.
-REAL mode: fetches metadata from a radar tile API.
+MOCK mode: fetches the latest frame from RainViewer's free public API
+           (no API key required, global coverage including India).
+           Falls back to a placeholder if RainViewer is unreachable.
+REAL mode: fetches metadata from a configured radar tile API.
 
 Anomaly rules (applied in both modes):
   - anomaly=True if dbz_max > 75 dBZ (hail-level; very rare over Hyderabad)
@@ -16,8 +18,12 @@ import numpy as np
 
 logger = logging.getLogger("floodguard.ingest.radar")
 
-DBZ_ANOMALY_MAX = 75.0   # dBZ threshold above which we flag
-DBZ_ANOMALY_MIN = 20.0   # baseline dBZ should be near 0
+DBZ_ANOMALY_MAX = 75.0
+DBZ_ANOMALY_MIN = 20.0
+
+# RainViewer public API — no auth required
+_RAINVIEWER_API = "https://api.rainviewer.com/public/weather-maps.json"
+_RAINVIEWER_TILE = "https://tilecache.rainviewer.com{path}/512/{{z}}/{{x}}/{{y}}/2/1_1.png"
 
 
 def validate_georef(frame: dict) -> bool:
@@ -32,7 +38,7 @@ def detect_anomaly(frame: dict) -> bool:
     dbz_max = frame.get("dbz_max", 0.0)
     dbz_min = frame.get("dbz_min", 0.0)
     if dbz_max > DBZ_ANOMALY_MAX:
-        logger.warning("Radar anomaly: dbz_max=%.1f > threshold %.1f", dbz_max, DBZ_ANOMALY_MAX)
+        logger.warning("Radar anomaly: dbz_max=%.1f > %.1f", dbz_max, DBZ_ANOMALY_MAX)
         return True
     if dbz_min > DBZ_ANOMALY_MIN:
         logger.warning("Radar anomaly: dbz_min=%.1f suspiciously high", dbz_min)
@@ -41,17 +47,43 @@ def detect_anomaly(frame: dict) -> bool:
 
 
 def _mock_frame(ts: datetime) -> dict:
+    """
+    Fetch the most recent frame from RainViewer's free public radar API.
+    Falls back to a synthetic placeholder if the network is unavailable.
+    """
+    import requests
+
+    try:
+        resp = requests.get(_RAINVIEWER_API, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        past_frames = data.get("radar", {}).get("past", [])
+        if past_frames:
+            latest = past_frames[-1]
+            path = latest["path"]
+            tile_url = _RAINVIEWER_TILE.format(path=path)
+            seed = int(ts.timestamp()) % (2**31)
+            rng = np.random.default_rng(seed=seed)
+            return {
+                "ts": ts,
+                "tile_url_template": tile_url,
+                "dbz_min": 0.0,
+                "dbz_max": round(float(rng.uniform(10.0, 55.0)), 1),
+            }
+    except Exception as exc:
+        logger.warning("RainViewer unavailable, using placeholder: %s", exc)
+
+    # Fallback — tiles won't load but won't crash the ingest pipeline
     seed = int(ts.timestamp()) % (2**31)
     rng = np.random.default_rng(seed=seed)
-    dbz_max = round(float(rng.uniform(10.0, 65.0)), 1)
     return {
         "ts": ts,
         "tile_url_template": (
-            f"https://mock-radar.example.com"
-            f"/{ts.strftime('%Y%m%d%H%M')}/{{z}}/{{x}}/{{y}}.png"
+            f"https://tilecache.rainviewer.com/v2/radar/nowcast"
+            f"/{ts.strftime('%Y%m%d%H%M')}/512/{{z}}/{{x}}/{{y}}/2/1_1.png"
         ),
         "dbz_min": 0.0,
-        "dbz_max": dbz_max,
+        "dbz_max": round(float(rng.uniform(10.0, 55.0)), 1),
     }
 
 
