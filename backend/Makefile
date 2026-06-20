@@ -25,6 +25,9 @@ test:
 test-v:
 	pytest --tb=long -v
 
+test-e2e:
+	pytest tests/test_e2e.py --tb=short -v
+
 # ── Code quality ──────────────────────────────────────────────────────────────
 lint:
 	flake8 . --max-line-length=120 --exclude=migrations,__pycache__

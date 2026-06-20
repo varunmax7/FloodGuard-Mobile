@@ -88,3 +88,38 @@ def verify_firebase_token(id_token: str) -> str:
     if not phone:
         raise ValueError("Firebase ID token has no phone_number claim.")
     return phone
+
+
+def send_fcm_notification(
+    token: str,
+    title: str,
+    body: str,
+    data: dict | None = None,
+) -> str | None:
+    """
+    Send a single FCM push notification.
+
+    Returns the FCM message ID on success, or a dev-mode stub string.
+    Raises on send failure (caller should handle and mark delivery FAILED).
+    """
+    _init()
+
+    if _dev_mode:
+        logger.info("FCM DEV MODE — would send to %s…: %s", token[:12], title)
+        return f"dev-{token[:8]}"
+
+    from firebase_admin import messaging
+
+    message = messaging.Message(
+        notification=messaging.Notification(title=title, body=body),
+        data={k: str(v) for k, v in (data or {}).items()},
+        token=token,
+        android=messaging.AndroidConfig(priority="high"),
+        apns=messaging.APNSConfig(
+            payload=messaging.APNSPayload(
+                aps=messaging.Aps(content_available=True, sound="default"),
+            )
+        ),
+    )
+
+    return messaging.send(message, app=_app)  # returns message ID string

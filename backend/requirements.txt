@@ -41,9 +41,13 @@ requests==2.32.3
 Pillow==11.1.0
 gunicorn==23.0.0
 
+# ── Observability ─────────────────────────────────────────────────────────────
+sentry-sdk[django,celery]==2.19.2
+
 # ── Dev / test ────────────────────────────────────────────────────────────────
 pytest>=8.0.0
 pytest-django>=4.0.0
+pytest-mock>=3.0.0
 factory-boy>=3.0.0
 flake8>=7.0.0
 black
