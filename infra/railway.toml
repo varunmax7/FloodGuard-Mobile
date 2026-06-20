@@ -1,0 +1,53 @@
+# Railway deployment configuration for FloodGuard
+# https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "backend/Dockerfile"
+
+# ── Web service (Django + Gunicorn) ──────────────────────────────────────────
+[[services]]
+name = "web"
+source = "."
+
+[services.build]
+builder = "dockerfile"
+dockerfilePath = "backend/Dockerfile"
+
+[services.deploy]
+startCommand = "gunicorn floodguard.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60 --access-logfile -"
+healthcheckPath = "/api/v1/readyz/"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[services.deploy.releaseCommand]
+command = "python manage.py migrate --noinput && python manage.py collectstatic --noinput"
+
+# ── Celery Worker ─────────────────────────────────────────────────────────────
+[[services]]
+name = "worker"
+source = "."
+
+[services.build]
+builder = "dockerfile"
+dockerfilePath = "backend/Dockerfile"
+
+[services.deploy]
+startCommand = "celery -A floodguard worker -l INFO --concurrency=4 --max-tasks-per-child=100"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5
+
+# ── Celery Beat ───────────────────────────────────────────────────────────────
+[[services]]
+name = "beat"
+source = "."
+
+[services.build]
+builder = "dockerfile"
+dockerfilePath = "backend/Dockerfile"
+
+[services.deploy]
+startCommand = "celery -A floodguard beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
