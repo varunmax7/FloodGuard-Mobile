@@ -58,46 +58,6 @@ def admin_me(request):
     })
 
 
-# ── §2.1 Forecast Verification (full impl Phase 11) ──────────────────────────
-
-@api_view(["GET"])
-@permission_classes([IsStaffAny])
-def verify_station_timeseries(request, station_id):
-    return Response({"detail": "Phase 11", "station_id": station_id}, status=501)
-
-
-@api_view(["GET"])
-@permission_classes([IsStaffAny])
-def verify_errors(request):
-    return Response({"detail": "Phase 11"}, status=501)
-
-
-@api_view(["GET"])
-@permission_classes([IsStaffAny])
-def verify_error_map(request):
-    return Response({"detail": "Phase 11"}, status=501)
-
-
-# ── §2.2 Report-vs-Risk Validation (full impl Phase 11) ──────────────────────
-
-@api_view(["GET"])
-@permission_classes([IsStaffAny])
-def validate_reports_vs_risk(request):
-    return Response({"detail": "Phase 11"}, status=501)
-
-
-@api_view(["GET"])
-@permission_classes([IsStaffAny])
-def validate_confusion(request):
-    return Response({"detail": "Phase 11"}, status=501)
-
-
-@api_view(["GET"])
-@permission_classes([IsStaffAny])
-def validate_hotspot_ranking(request):
-    return Response({"detail": "Phase 11"}, status=501)
-
-
 # ── §2.3 Calibration Console (full impl Phase 12) ────────────────────────────
 
 @api_view(["GET", "PUT"])

@@ -8,6 +8,8 @@ import CalibrationPage from './pages/CalibrationPage'
 import ModerationPage from './pages/ModerationPage'
 import PlaceholderPage from './pages/PlaceholderPage'
 import AuditLogPage from './pages/AuditLogPage'
+import ForecastVerificationPage from './pages/ForecastVerificationPage'
+import ValidationPage from './pages/ValidationPage'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -27,16 +29,10 @@ export default function App() {
               <RequireAuth><OverviewPage /></RequireAuth>
             } />
             <Route path="/verify" element={
-              <RequireAuth>
-                <PlaceholderPage title="Forecast Verification" section="§2.1 Forecast Verification"
-                  phase="Phase 11" description="Predicted vs observed timeseries, error metrics, bias-correction readout." />
-              </RequireAuth>
+              <RequireAuth><ForecastVerificationPage /></RequireAuth>
             } />
             <Route path="/validation" element={
-              <RequireAuth>
-                <PlaceholderPage title="Validation" section="§2.2 Report-vs-Risk Validation"
-                  phase="Phase 11" description="Confusion matrix, per-event timeline, hotspot accuracy ranking." />
-              </RequireAuth>
+              <RequireAuth><ValidationPage /></RequireAuth>
             } />
             <Route path="/health" element={
               <RequireAuth>

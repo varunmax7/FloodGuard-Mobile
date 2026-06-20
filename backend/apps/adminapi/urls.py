@@ -1,6 +1,7 @@
 """adminapi/urls.py — all admin API routes (§2.1–2.8)."""
 from django.urls import path
 from . import views
+from . import verify, validate
 
 urlpatterns = [
     # Auth
@@ -8,14 +9,15 @@ urlpatterns = [
     path("auth/me/",     views.admin_me,    name="admin-me"),
 
     # §2.1 Forecast Verification
-    path("verify/stations/<str:station_id>/timeseries/", views.verify_station_timeseries),
-    path("verify/errors/",     views.verify_errors),
-    path("verify/error-map/",  views.verify_error_map),
+    path("verify/stations/",                             verify.station_list),
+    path("verify/stations/<str:station_id>/timeseries/", verify.station_timeseries),
+    path("verify/errors/",                               verify.error_metrics),
+    path("verify/error-map/",                            verify.error_map),
 
     # §2.2 Report-vs-Risk Validation
-    path("validate/reports-vs-risk/",   views.validate_reports_vs_risk),
-    path("validate/confusion/",         views.validate_confusion),
-    path("validate/hotspot-ranking/",   views.validate_hotspot_ranking),
+    path("validate/reports-vs-risk/",   validate.reports_vs_risk),
+    path("validate/confusion/",         validate.confusion_matrix),
+    path("validate/hotspot-ranking/",   validate.hotspot_ranking),
 
     # §2.3 Calibration Console
     path("calibrate/weights/",          views.calibrate_weights),

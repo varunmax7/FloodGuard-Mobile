@@ -52,6 +52,17 @@ export const adminApi = {
   moderationAction: (id: string, action: string) =>
     api.post(`/admin/moderation/${id}/action/`, { action }).then((r) => r.data),
 
+  // §2.1 Forecast Verification
+  verifyStations:   ()                             => api.get('/admin/verify/stations/').then((r) => r.data),
+  verifyTimeseries: (id: string, window: number)   => api.get(`/admin/verify/stations/${id}/timeseries/?window=${window}`).then((r) => r.data),
+  verifyErrors:     (window = 72)                  => api.get(`/admin/verify/errors/?window=${window}`).then((r) => r.data),
+  verifyErrorMap:   ()                             => api.get('/admin/verify/error-map/').then((r) => r.data),
+
+  // §2.2 Report-vs-Risk Validation
+  validateReportsVsRisk:  (from?: string, to?: string) => api.get('/admin/validate/reports-vs-risk/', { params: { from, to } }).then((r) => r.data),
+  validateConfusion:      (from?: string, to?: string) => api.get('/admin/validate/confusion/',        { params: { from, to } }).then((r) => r.data),
+  validateHotspotRanking: ()                           => api.get('/admin/validate/hotspot-ranking/').then((r) => r.data),
+
   // Health (§2.4)
   healthFeeds: () => api.get('/admin/health/feeds/').then((r) => r.data),
 }
