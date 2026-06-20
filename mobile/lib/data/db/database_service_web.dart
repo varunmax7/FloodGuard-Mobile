@@ -6,4 +6,6 @@ class DatabaseService {
   Future<void> cacheRiskOverview(String json) async {}
   Future<String?> getCachedRiskOverviewJson() async => null;
   Future<void> enqueuePendingReport(Map<String, dynamic> data) async {}
+  Future<List<Map<String, dynamic>>> getUnsynced() async => [];
+  Future<void> markSynced(String id) async {}
 }
