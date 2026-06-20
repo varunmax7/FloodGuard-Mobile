@@ -53,6 +53,31 @@ class BiasFactor(models.Model):
         return f"BiasFactor({self.station_id or self.region})"
 
 
+class FsiWeights(models.Model):
+    """FSI layer weights + risk thresholds — append-only; latest row is current config."""
+    twi              = models.FloatField(default=0.25)
+    depression_depth = models.FloatField(default=0.20)
+    hand             = models.FloatField(default=0.20)
+    dist_to_water    = models.FloatField(default=0.15)
+    slope            = models.FloatField(default=0.10)
+    imperviousness   = models.FloatField(default=0.10)
+    threshold_low      = models.FloatField(default=0.25)
+    threshold_moderate = models.FloatField(default=0.50)
+    threshold_high     = models.FloatField(default=0.75)
+    hazard_low      = models.FloatField(default=5.0)
+    hazard_moderate = models.FloatField(default=15.0)
+    hazard_high     = models.FloatField(default=30.0)
+    updated_at = models.DateTimeField(auto_now_add=True)
+    updated_by = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        db_table = "risk_fsi_weights"
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"FsiWeights({self.updated_at})"
+
+
 class CalibrationLog(models.Model):
     """Audit trail for calibration changes."""
     actor = models.CharField(max_length=200)

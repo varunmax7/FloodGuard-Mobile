@@ -52,6 +52,25 @@ export const adminApi = {
   moderationAction: (id: string, action: string) =>
     api.post(`/admin/moderation/${id}/action/`, { action }).then((r) => r.data),
 
+  // §2.3 Calibration Console
+  getWeights:         ()                                   => api.get('/admin/calibrate/weights/').then((r) => r.data),
+  putWeights:         (data: object)                       => api.put('/admin/calibrate/weights/', data).then((r) => r.data),
+  calibratePreview:   (weights: object, date?: string)     => api.post('/admin/calibrate/preview/', { weights, date }).then((r) => r.data),
+  calibrateBacktest:  (weights: object)                    => api.post('/admin/calibrate/backtest/', { weights }).then((r) => r.data),
+
+  // §2.4 System Health
+  healthFeeds:    () => api.get('/admin/health/feeds/').then((r) => r.data),
+  healthStations: () => api.get('/admin/health/stations/').then((r) => r.data),
+  healthRadar:    () => api.get('/admin/health/radar/').then((r) => r.data),
+
+  // §2.5 Moderation
+  moderationQueue:  ()                           => api.get('/admin/moderation/queue/').then((r) => r.data),
+  moderationAction: (id: string, action: string) => api.post(`/admin/moderation/${id}/action/`, { action }).then((r) => r.data),
+
+  // §2.6 Analytics
+  analyticsAlerts: () => api.get('/admin/analytics/alerts/').then((r) => r.data),
+  analyticsUsage:  () => api.get('/admin/analytics/usage/').then((r) => r.data),
+
   // §2.1 Forecast Verification
   verifyStations:   ()                             => api.get('/admin/verify/stations/').then((r) => r.data),
   verifyTimeseries: (id: string, window: number)   => api.get(`/admin/verify/stations/${id}/timeseries/?window=${window}`).then((r) => r.data),

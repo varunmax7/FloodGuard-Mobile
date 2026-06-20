@@ -10,6 +10,9 @@ import PlaceholderPage from './pages/PlaceholderPage'
 import AuditLogPage from './pages/AuditLogPage'
 import ForecastVerificationPage from './pages/ForecastVerificationPage'
 import ValidationPage from './pages/ValidationPage'
+import HealthPage from './pages/HealthPage'
+import AnalyticsPage from './pages/AnalyticsPage'
+import ExportPage from './pages/ExportPage'
 
 const qc = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -34,24 +37,9 @@ export default function App() {
             <Route path="/validation" element={
               <RequireAuth><ValidationPage /></RequireAuth>
             } />
-            <Route path="/health" element={
-              <RequireAuth>
-                <PlaceholderPage title="System Health" section="§2.4 System & Data Health"
-                  phase="Phase 12" description="Feed staleness, AWS station uptime, radar anomalies, API error rates." />
-              </RequireAuth>
-            } />
-            <Route path="/analytics" element={
-              <RequireAuth>
-                <PlaceholderPage title="Analytics" section="§2.6 Alert Analytics"
-                  phase="Phase 12" description="FCM delivery receipts, alert rates by area/level, usage stats." />
-              </RequireAuth>
-            } />
-            <Route path="/export" element={
-              <RequireAuth>
-                <PlaceholderPage title="Export" section="§2.7 Historical Query & Export"
-                  phase="Phase 12" description="Filter past risk + reports by area/date, export CSV or GeoJSON." />
-              </RequireAuth>
-            } />
+            <Route path="/health"    element={<RequireAuth><HealthPage /></RequireAuth>} />
+            <Route path="/analytics" element={<RequireAuth><AnalyticsPage /></RequireAuth>} />
+            <Route path="/export"    element={<RequireAuth><ExportPage /></RequireAuth>} />
 
             {/* Protected — OPERATOR+ */}
             <Route path="/calibration" element={
