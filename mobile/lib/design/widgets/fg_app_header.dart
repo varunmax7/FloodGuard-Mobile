@@ -3,16 +3,20 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 
 class FgAppHeader extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final VoidCallback? onBellTap;
+  final PreferredSizeWidget? bottom;
 
-  const FgAppHeader({super.key, this.actions, this.onBellTap});
+  const FgAppHeader({super.key, this.actions, this.onBellTap, this.bottom});
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => Size.fromHeight(
+        kToolbarHeight + (bottom?.preferredSize.height ?? 0),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -31,13 +35,20 @@ class FgAppHeader extends StatelessWidget implements PreferredSizeWidget {
       elevation: 0,
       titleSpacing: 16,
       title: const _HeaderTitle(),
+      bottom: bottom,
       actions: actions ??
           [
             IconButton(
               icon: const Icon(Icons.notifications_outlined,
                   color: Colors.white, size: 24),
-              onPressed: onBellTap ?? () {},
+              onPressed: onBellTap ?? () => context.go('/alerts'),
               tooltip: 'Alerts',
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings_outlined,
+                  color: Colors.white, size: 22),
+              onPressed: () => context.push('/settings'),
+              tooltip: 'Settings',
             ),
             const SizedBox(width: 4),
           ],

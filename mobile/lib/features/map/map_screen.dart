@@ -71,15 +71,18 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
     // Add empty GeoJSON source for risk hexes
     await _ctrl!.addGeoJsonSource('risk-hexes', _emptyFeatureCollection());
 
-    // Fill layer coloured by risk_level
+    // Fill layer coloured by risk_level.
+    // 'label_other' is the lowest label layer in OpenFreeMap Liberty, so hexes
+    // render under place/road labels and stay readable.
     await _ctrl!.addFillLayer(
       'risk-hexes',
       'risk-fill',
-      FillLayerProperties(
+      const FillLayerProperties(
         fillColor: _kRiskFillColor,
-        fillOpacity: 0.55,
+        fillOpacity: 0.6,
         fillOutlineColor: '#FFFFFF',
       ),
+      belowLayerId: 'label_other',
     );
 
     // Initial hex fetch
@@ -162,7 +165,7 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
 
       await _ctrl!.addSource(
         'radar-source',
-        const RasterSourceProperties(tileSize: 256),
+        RasterSourceProperties(tiles: [tileUrl], tileSize: 256),
       );
       await _ctrl!.addRasterLayer(
         'radar-source',
@@ -388,21 +391,21 @@ class _RadarBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        boxShadow: [
           BoxShadow(
               color: Color(0x1A0F172A),
               blurRadius: 8,
               offset: Offset(0, 2)),
         ],
       ),
-      child: Row(
+      child: const Row(
         children: [
-          const Icon(Icons.radar, color: AppColors.blue600, size: 18),
-          const SizedBox(width: 8),
-          const Expanded(
+          Icon(Icons.radar, color: AppColors.blue600, size: 18),
+          SizedBox(width: 8),
+          Expanded(
             child: Text(
               'Radar overlay active — live dBZ tiles',
               style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
