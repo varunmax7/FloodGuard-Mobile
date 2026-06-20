@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../design/theme/app_theme.dart';
 import '../../design/widgets/fg_app_header.dart';
 import '../../features/home/home_screen.dart';
+import '../../features/map/map_screen.dart';
 
 class AppRoutes {
   static const home = '/';
@@ -38,7 +39,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: AppRoutes.map,
             name: 'map',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: _TabPlaceholder(title: 'Risk Map', icon: Icons.map_outlined),
+              child: RiskMapScreen(),
             ),
           ),
           GoRoute(
