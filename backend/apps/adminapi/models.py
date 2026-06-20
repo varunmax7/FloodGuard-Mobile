@@ -1,1 +1,1 @@
-"""adminapi/models.py — no direct models; admin API reads from other apps."""
+"""adminapi/models.py — no direct models; ModerationLog lives in reports app."""

@@ -30,9 +30,16 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     """Custom user model — phone-based, no username/email."""
+    ROLE_CHOICES = [
+        ("ADMIN", "Admin"),
+        ("OPERATOR", "Operator"),
+        ("VIEWER", "Viewer"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     phone = models.CharField(max_length=20, unique=True)
     fcm_token = models.TextField(blank=True, default="")
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="VIEWER")
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
