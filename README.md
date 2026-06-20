@@ -106,6 +106,7 @@ npm run dev
 | p1 | Geospatial Data Layer (PostGIS + H3) | ✅ |
 | p2 | Auth (Phone OTP) & Saved Places API | ✅ |
 | p3 | Data Ingestion Pipeline (ECMWF + AWS + Radar + Bias) | ✅ |
+| p4 | Risk Engine & Public Risk/Radar APIs | ✅ |
 | p3 | Risk Engine | ⬜ |
 | p4 | REST API Layer | ⬜ |
 | p5 | Flutter Auth + Navigation Shell | ⬜ |

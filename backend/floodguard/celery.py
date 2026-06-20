@@ -31,6 +31,10 @@ app.conf.beat_schedule = {
         "task": "apps.ingest.tasks.recompute_bias",
         "schedule": crontab(minute=5),           # 5 past every hour (after ECMWF lands)
     },
+    "recompute-risk-hourly": {
+        "task": "apps.risk.tasks.recompute_all_risk",
+        "schedule": crontab(minute=15),          # 15 past every hour (after ECMWF + bias)
+    },
 }
 
 

@@ -184,6 +184,14 @@ AWS_DEFAULT_ACL = "public-read"
 if AWS_ACCESS_KEY_ID and AWS_S3_ENDPOINT_URL:
     DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
+# ── Cache (LocMemCache in dev; switch to Redis in prod) ───────────────────────
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "floodguard-default",
+    }
+}
+
 # ── Ingest pipeline ───────────────────────────────────────────────────────────
 # INGEST_MOCK=True → all tasks use synthetic fixture data (no live API calls)
 # Set to False in production after configuring ECMWF_API_KEY / TGDPS_API_KEY / RADAR_API_KEY
