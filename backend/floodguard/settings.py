@@ -1,5 +1,5 @@
 """
-FloodGuard Django Configuration — Development Settings
+FloodGuard Django Configuration
 """
 import os
 from pathlib import Path
@@ -183,18 +183,35 @@ AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="floodguard-
 AWS_S3_ENDPOINT_URL = config("AWS_S3_ENDPOINT_URL", default="")
 AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="auto")
 AWS_S3_FILE_OVERWRITE = False
-AWS_DEFAULT_ACL = "public-read"
+# Private ACL so photos are served only via pre-signed URLs (not public)
+AWS_DEFAULT_ACL = "private"
+AWS_QUERYSTRING_AUTH = True
+AWS_QUERYSTRING_EXPIRE = 3600          # signed URL valid for 1 hour
 
 if AWS_ACCESS_KEY_ID and AWS_S3_ENDPOINT_URL:
     DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
-# ── Cache (LocMemCache in dev; switch to Redis in prod) ───────────────────────
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "floodguard-default",
+# ── Cache — Redis in prod, LocMem in dev ──────────────────────────────────────
+CACHE_URL = config("CACHE_URL", default="")
+if CACHE_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": CACHE_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
+            "KEY_PREFIX": "fg",
+            "TIMEOUT": 300,
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "floodguard-default",
+        }
+    }
 
 # ── Ingest pipeline ───────────────────────────────────────────────────────────
 # INGEST_MOCK=True → all tasks use synthetic fixture data (no live API calls)
@@ -243,3 +260,40 @@ LOGGING = {
         },
     },
 }
+
+# ── Sentry (disabled when DSN is empty) ───────────────────────────────────────
+SENTRY_DSN = config("SENTRY_DSN", default="")
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(transaction_style="url"),
+            CeleryIntegration(monitor_beat_tasks=True),
+            LoggingIntegration(level=None, event_level="ERROR"),
+        ],
+        traces_sample_rate=0.1,
+        profiles_sample_rate=0.0,
+        environment="production" if not DEBUG else "development",
+        send_default_pii=False,
+    )
+
+# ── Production security headers (no-op in dev) ────────────────────────────────
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    CORS_ALLOWED_ORIGINS = config(
+        "CORS_ALLOWED_ORIGINS",
+        default="",
+    ).split(",")
+    # Remove blanket localhost CORS in prod
+    CORS_ALLOWED_ORIGIN_REGEXES = []

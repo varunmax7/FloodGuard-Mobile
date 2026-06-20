@@ -35,6 +35,10 @@ app.conf.beat_schedule = {
         "task": "apps.risk.tasks.recompute_all_risk",
         "schedule": crontab(minute=15),          # 15 past every hour (after ECMWF + bias)
     },
+    "dispatch-alerts-hourly": {
+        "task": "apps.alerts.tasks.dispatch_alerts",
+        "schedule": crontab(minute=20),          # 20 past every hour (after risk recompute)
+    },
 }
 
 
