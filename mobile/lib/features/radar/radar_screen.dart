@@ -153,7 +153,6 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
       await _ctrl!.addRasterLayer(
         'radar-live',
         'radar-live-layer',
-        const RasterLayerProperties(rasterOpacity: 0.75),
       );
     } catch (e) {
       debugPrint('[RadarScreen] tile swap: $e');

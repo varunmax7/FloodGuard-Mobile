@@ -72,18 +72,39 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
     await _ctrl!.addGeoJsonSource('risk-hexes', _emptyFeatureCollection());
 
     // Fill layer coloured by risk_level.
-    // 'label_other' is the lowest label layer in OpenFreeMap Liberty, so hexes
-    // render under place/road labels and stay readable.
-    await _ctrl!.addFillLayer(
-      'risk-hexes',
-      'risk-fill',
-      const FillLayerProperties(
-        fillColor: _kRiskFillColor,
-        fillOpacity: 0.6,
-        fillOutlineColor: '#FFFFFF',
-      ),
-      belowLayerId: 'label_other',
+    // Try to insert below 'label_other' (lowest label layer in OpenFreeMap Liberty)
+    // so hexes render under place/road labels. Fall back to top-of-stack if the
+    // reference layer doesn't exist in this style version.
+    const fillProps = FillLayerProperties(
+      fillColor: _kRiskFillColor,
+      fillOpacity: 0.55,
+      fillOutlineColor: '#FFFFFF',
     );
+
+    bool layerAdded = false;
+    for (final below in ['label_other', 'poi_label', 'place_label', 'road_label']) {
+      try {
+        await _ctrl!.addFillLayer(
+          'risk-hexes',
+          'risk-fill',
+          fillProps,
+          belowLayerId: below,
+        );
+        layerAdded = true;
+        break;
+      } catch (_) {
+        // Layer ID not found in this style — try next
+      }
+    }
+
+    if (!layerAdded) {
+      // Last resort: add without belowLayerId (renders on top)
+      try {
+        await _ctrl!.addFillLayer('risk-hexes', 'risk-fill', fillProps);
+      } catch (e) {
+        debugPrint('[RiskMap] addFillLayer failed: $e');
+      }
+    }
 
     // Initial hex fetch
     _scheduleHexFetch();
