@@ -48,7 +48,7 @@ def radar_frames(request):
             new_frames = []
             for frame in past_frames:
                 ts = datetime.fromtimestamp(frame['time'], tz=dt_timezone.utc)
-                tile_url = f"{host}{frame['path']}/512/{{z}}/{{x}}/{{y}}/4/1.png"
+                tile_url = f"{host}{frame['path']}/256/{{z}}/{{x}}/{{y}}/4/1.png"
                 new_frames.append(RadarFrame(
                     ts=ts,
                     tile_url_template=tile_url,

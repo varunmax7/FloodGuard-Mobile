@@ -352,17 +352,17 @@ class _AddPlaceSheetState extends State<_AddPlaceSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Add Saved Place',
+          Text('Add Saved Place',
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary)),
+                  color: Theme.of(context).colorScheme.onSurface)),
           const SizedBox(height: 16),
-          const Text('Label',
+          Text('Label',
               style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textMuted)),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -377,15 +377,15 @@ class _AddPlaceSheetState extends State<_AddPlaceSheet> {
           ),
           const SizedBox(height: 16),
           if (_locating)
-            const Row(children: [
-              SizedBox(
+            Row(children: [
+              const SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2)),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Text('Getting your location…',
                   style: TextStyle(
-                      fontSize: 13, color: AppColors.textMuted)),
+                      fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ])
           else if (_lat != null)
             Row(children: [
@@ -394,8 +394,8 @@ class _AddPlaceSheetState extends State<_AddPlaceSheet> {
               const SizedBox(width: 6),
               Text(
                 '${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}',
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.textPrimary),
+                style: TextStyle(
+                    fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
               ),
               const SizedBox(width: 8),
               GestureDetector(

@@ -13,11 +13,20 @@ class AlertEvent(models.Model):
         ("HIGH", "High"),
         ("SEVERE", "Severe"),
     ]
+    SOURCE_CHOICES = [
+        ("RISK", "Risk engine"),
+        ("REPORT", "Verified user report"),
+    ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     hex = models.ForeignKey(HexCell, on_delete=models.SET_NULL, null=True, blank=True,
                             related_name="alert_events")
     risk_level = models.CharField(max_length=10, choices=LEVEL_CHOICES)
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="RISK")
+    report = models.ForeignKey(
+        "reports.FloodReport", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="alert_events",
+    )
     window_start = models.DateTimeField()
     window_end = models.DateTimeField()
     message = models.TextField()

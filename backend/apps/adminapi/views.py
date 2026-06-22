@@ -76,7 +76,12 @@ def audit_moderation(request):
     from apps.reports.models import ModerationLog
     logs = ModerationLog.objects.select_related("actor", "report").order_by("-ts")[:50]
     return Response([
-        {"actor": l.actor.phone if l.actor else None, "action": l.action,
-         "report_id": str(l.report.id) if l.report else None, "ts": l.ts}
+        {
+            "actor": l.actor.phone if l.actor else None,
+            "action": l.action,
+            "report_id": str(l.report.id) if l.report else None,
+            "photo_url": l.report.photo_url if l.report else None,
+            "ts": l.ts
+        }
         for l in logs
     ])

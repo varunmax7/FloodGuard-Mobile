@@ -67,4 +67,9 @@ def action(request, pk):
     report.status = {"VERIFY": "VERIFIED", "REJECT": "REJECTED", "SPAM": "SPAM"}[act]
     report.save(update_fields=["status"])
     log_moderation(actor=request.user, report=report, action=act)
+
+    if act == "VERIFY":
+        from apps.alerts.tasks import dispatch_report_alert
+        dispatch_report_alert.delay(str(report.id))
+
     return Response({"detail": f"Report {act}.", "status": report.status})

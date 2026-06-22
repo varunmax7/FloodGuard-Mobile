@@ -186,7 +186,11 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
 
       await _ctrl!.addSource(
         'radar-source',
-        RasterSourceProperties(tiles: [tileUrl], tileSize: 256),
+        RasterSourceProperties(
+          tiles: [tileUrl], 
+          tileSize: 256,
+          maxzoom: 6,
+        ),
       );
       await _ctrl!.addRasterLayer(
         'radar-source',

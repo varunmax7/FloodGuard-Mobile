@@ -1,6 +1,7 @@
 /// Alerts screen — Active / History tabs with alert cards.
 library;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,9 +11,10 @@ import '../../data/models/alert_event.dart';
 import '../../design/theme/app_theme.dart';
 import '../../design/widgets/fg_card.dart';
 import '../../design/widgets/fg_app_header.dart';
-import '../../design/widgets/fg_card.dart';
 import '../../design/widgets/risk_dot.dart';
 import '../../design/widgets/skeleton_loader.dart';
+
+final dismissedAlertsProvider = StateProvider<Set<String>>((ref) => {});
 
 class AlertsScreen extends ConsumerWidget {
   final String? focusH3;
@@ -78,17 +80,27 @@ class _AlertsList extends ConsumerWidget {
         error: (e, _) => _ErrorView(
           onRetry: () => ref.invalidate(alertsProvider(scope)),
         ),
-        data: (alerts) => alerts.isEmpty
+        data: (alerts) {
+          final dismissed = ref.watch(dismissedAlertsProvider);
+          final visibleAlerts = scope == 'active' 
+              ? alerts.where((a) => !dismissed.contains(a.id)).toList()
+              : alerts;
+
+          return visibleAlerts.isEmpty
             ? _EmptyView(scope: scope)
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                itemCount: alerts.length,
+                itemCount: visibleAlerts.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (ctx, i) => AlertCard(
-                  alert: alerts[i],
-                  highlighted: alerts[i].h3Index == focusH3,
+                  alert: visibleAlerts[i],
+                  highlighted: visibleAlerts[i].h3Index == focusH3,
+                  onDismiss: scope == 'active'
+                      ? () => ref.read(dismissedAlertsProvider.notifier).update((s) => {...s, visibleAlerts[i].id})
+                      : null,
                 ),
-              ),
+              );
+        },
       ),
     );
   }
@@ -99,8 +111,25 @@ class _AlertsList extends ConsumerWidget {
 class AlertCard extends StatelessWidget {
   final AlertEvent alert;
   final bool highlighted;
+  final VoidCallback? onDismiss;
 
-  const AlertCard({super.key, required this.alert, this.highlighted = false});
+  const AlertCard({super.key, required this.alert, this.highlighted = false, this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    return alert.isReport
+        ? _ReportAlertCard(alert: alert, highlighted: highlighted, onDismiss: onDismiss)
+        : _RiskAlertCard(alert: alert, highlighted: highlighted, onDismiss: onDismiss);
+  }
+}
+
+// ── Risk-engine alert card (existing style) ───────────────────────────────────
+
+class _RiskAlertCard extends StatelessWidget {
+  final AlertEvent alert;
+  final bool highlighted;
+  final VoidCallback? onDismiss;
+  const _RiskAlertCard({required this.alert, required this.highlighted, this.onDismiss});
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +143,6 @@ class AlertCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Left risk-colour bar
             Container(
               width: 4,
               decoration: BoxDecoration(
@@ -147,6 +175,13 @@ class AlertCard extends StatelessWidget {
                           ),
                         ),
                         RiskBadge(level: alert.riskLevel),
+                        if (onDismiss != null) ...[
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: onDismiss,
+                            child: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -177,6 +212,194 @@ class AlertCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Verified-report alert card (new, with photo) ──────────────────────────────
+
+class _ReportAlertCard extends StatelessWidget {
+  final AlertEvent alert;
+  final bool highlighted;
+  final VoidCallback? onDismiss;
+  const _ReportAlertCard({required this.alert, required this.highlighted, this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    final accentColor = riskColor(alert.riskLevel);
+
+    return FgCard(
+      padding: EdgeInsets.zero,
+      color: highlighted ? accentColor.withAlpha(15) : AppColors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Photo (full width, if available) ────────────────────────────
+          if (alert.photoUrl != null && alert.photoUrl!.isNotEmpty)
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+              child: CachedNetworkImage(
+                imageUrl: alert.photoUrl!,
+                height: 160,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Container(
+                  height: 160,
+                  color: const Color(0xFFF1F5F9),
+                  child: const Center(
+                    child: Icon(Icons.image_outlined,
+                        size: 32, color: AppColors.textMuted),
+                  ),
+                ),
+                errorWidget: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+
+          // ── Body ─────────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header row
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: accentColor.withAlpha(20),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.verified_outlined,
+                              size: 12, color: accentColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Verified Report',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: accentColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    RiskBadge(level: alert.riskLevel),
+                    if (onDismiss != null) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: onDismiss,
+                        child: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Location
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined,
+                        size: 14, color: AppColors.textMuted),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        alert.areaLabel,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+
+                // Depth + Road chips
+                if (alert.depth != null || alert.road != null)
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      if (alert.depth != null)
+                        _InfoChip(
+                          icon: Icons.water_outlined,
+                          label: alert.depthLabel,
+                          color: accentColor,
+                        ),
+                      if (alert.road != null)
+                        _InfoChip(
+                          icon: Icons.directions_car_outlined,
+                          label: alert.roadLabel,
+                          color: alert.road == 'BLOCKED'
+                              ? AppColors.riskSevere
+                              : alert.road == 'DIFFICULT'
+                                  ? const Color(0xFFF59E0B)
+                                  : AppColors.textMuted,
+                        ),
+                    ],
+                  ),
+                const SizedBox(height: 8),
+
+                // Footer
+                Row(
+                  children: [
+                    const Icon(Icons.access_time,
+                        size: 12, color: AppColors.textMuted),
+                    const SizedBox(width: 4),
+                    Text(
+                      alert.timeAgo,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textMuted),
+                    ),
+                    const Spacer(),
+                    if (alert.h3Index != null)
+                      _ViewDetailButton(alert: alert),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _InfoChip(
+      {required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withAlpha(15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withAlpha(40)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11, color: color, fontWeight: FontWeight.w500)),
+        ],
       ),
     );
   }

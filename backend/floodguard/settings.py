@@ -2,7 +2,10 @@
 FloodGuard Django Configuration
 """
 import os
+from datetime import timedelta
 from pathlib import Path
+
+import dj_database_url
 from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -79,7 +82,6 @@ TEMPLATES = [
 WSGI_APPLICATION = "floodguard.wsgi.application"
 
 # ── Database (PostGIS) ────────────────────────────────────────────────────────
-import dj_database_url
 
 DATABASE_URL = config(
     "DATABASE_URL",
@@ -145,7 +147,6 @@ REST_FRAMEWORK = {
 }
 
 # ── SimpleJWT ─────────────────────────────────────────────────────────────────
-from datetime import timedelta
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
@@ -175,6 +176,7 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+CELERY_TASK_ALWAYS_EAGER = DEBUG  # Run tasks synchronously in local dev
 
 # ── Storage (S3 / Cloudflare R2) ──────────────────────────────────────────────
 AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
@@ -264,10 +266,10 @@ LOGGING = {
 # ── Sentry (disabled when DSN is empty) ───────────────────────────────────────
 SENTRY_DSN = config("SENTRY_DSN", default="")
 if SENTRY_DSN:
-    import sentry_sdk
-    from sentry_sdk.integrations.celery import CeleryIntegration
-    from sentry_sdk.integrations.django import DjangoIntegration
-    from sentry_sdk.integrations.logging import LoggingIntegration
+    import sentry_sdk  # noqa: E402
+    from sentry_sdk.integrations.celery import CeleryIntegration  # noqa: E402
+    from sentry_sdk.integrations.django import DjangoIntegration  # noqa: E402
+    from sentry_sdk.integrations.logging import LoggingIntegration  # noqa: E402
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,

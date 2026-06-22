@@ -148,11 +148,16 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
     try {
       await _ctrl!.addSource(
         'radar-live',
-        RasterSourceProperties(tiles: [url], tileSize: 512),
+        RasterSourceProperties(
+          tiles: [url], 
+          tileSize: 256,
+          maxzoom: 6, // Rainviewer API limits max zoom; overzoom from here
+        ),
       );
       await _ctrl!.addRasterLayer(
         'radar-live',
         'radar-live-layer',
+        const RasterLayerProperties(rasterOpacity: 0.7),
       );
     } catch (e) {
       debugPrint('[RadarScreen] tile swap: $e');
@@ -176,8 +181,6 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
 
     final frames = framesAsync.valueOrNull ?? [];
     final hasFrames = frames.isNotEmpty;
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-    final timelineH = hasFrames ? 128.0 + bottomPad : 0.0;
 
     return Scaffold(
       appBar: FgAppHeader(
@@ -199,94 +202,95 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
           const SizedBox(width: 4),
         ],
       ),
-      body: Stack(
+      body: Column(
         children: [
-          // ── Base map — always fills screen ───────────────────────────────
-          Positioned.fill(
-            bottom: timelineH,
-            child: MapLibreMap(
-              styleString: _kStyleUrl,
-              initialCameraPosition: const CameraPosition(
-                target: _kHydCenter,
-                zoom: 9.5,
-              ),
-              onMapCreated: _onMapCreated,
-              onStyleLoadedCallback: _onStyleLoaded,
-              myLocationEnabled: false,
-              compassEnabled: false,
-              rotateGesturesEnabled: false,
-              tiltGesturesEnabled: false,
-            ),
-          ),
+          // ── Map + overlays section (fills remaining space) ──────────────
+          Expanded(
+            child: Stack(
+              children: [
+                // ── Base map — fills the expanded area ─────────────────────
+                MapLibreMap(
+                  styleString: _kStyleUrl,
+                  initialCameraPosition: const CameraPosition(
+                    target: _kHydCenter,
+                    zoom: 9.5,
+                  ),
+                  onMapCreated: _onMapCreated,
+                  onStyleLoadedCallback: _onStyleLoaded,
+                  myLocationEnabled: false,
+                  compassEnabled: false,
+                  rotateGesturesEnabled: false,
+                  tiltGesturesEnabled: false,
+                ),
 
-          // ── Status chip (loading / error / no frames) ────────────────────
-          framesAsync.when(
-            loading: () => const Positioned(
-              top: 12, left: 0, right: 0,
-              child: Center(child: _StatusChip(
-                icon: Icons.hourglass_top,
-                label: 'Loading radar frames…',
-                color: AppColors.blue600,
-              )),
-            ),
-            error: (_, __) => Positioned(
-              top: 12, left: 0, right: 0,
-              child: Center(child: _StatusChip(
-                icon: Icons.cloud_off,
-                label: 'Radar unavailable — tap to retry',
-                color: AppColors.riskHigh,
-                onTap: () => ref.invalidate(radarFramesProvider),
-              )),
-            ),
-            data: (f) => f.isEmpty
-                ? const Positioned(
+                // ── Status chip (loading / error / no frames) ─────────────
+                framesAsync.when(
+                  loading: () => const Positioned(
                     top: 12, left: 0, right: 0,
                     child: Center(child: _StatusChip(
-                      icon: Icons.water_drop_outlined,
-                      label: 'No precipitation detected',
-                      color: AppColors.textMuted,
+                      icon: Icons.hourglass_top,
+                      label: 'Loading radar frames…',
+                      color: AppColors.blue600,
                     )),
-                  )
-                : const SizedBox.shrink(),
+                  ),
+                  error: (_, __) => Positioned(
+                    top: 12, left: 0, right: 0,
+                    child: Center(child: _StatusChip(
+                      icon: Icons.cloud_off,
+                      label: 'Radar unavailable — tap to retry',
+                      color: AppColors.riskHigh,
+                      onTap: () => ref.invalidate(radarFramesProvider),
+                    )),
+                  ),
+                  data: (f) => f.isEmpty
+                      ? const Positioned(
+                          top: 12, left: 0, right: 0,
+                          child: Center(child: _StatusChip(
+                            icon: Icons.water_drop_outlined,
+                            label: 'No precipitation detected',
+                            color: AppColors.textMuted,
+                          )),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+
+                // ── LIVE / PLAYBACK badge ─────────────────────────────────
+                if (hasFrames)
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: _LiveBadge(isLatest: _currentIndex == frames.length - 1),
+                  ),
+
+                // ── dBZ legend — always visible ───────────────────────────
+                Positioned(
+                  bottom: 12,
+                  left: 12,
+                  child: const RadarIntensityLegend(bands: _kStaticBands),
+                ),
+
+                // ── Frame counter ─────────────────────────────────────────
+                if (hasFrames)
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: _FrameCounter(
+                      current: _currentIndex + 1,
+                      total: frames.length,
+                    ),
+                  ),
+              ],
+            ),
           ),
 
-          // ── LIVE / PLAYBACK badge ────────────────────────────────────────
+          // ── Timeline scrubber (below map) ───────────────────────────────
           if (hasFrames)
-            Positioned(
-              top: 12,
-              right: 12,
-              child: _LiveBadge(isLatest: _currentIndex == frames.length - 1),
-            ),
-
-          // ── dBZ legend — always visible ──────────────────────────────────
-          Positioned(
-            bottom: timelineH + 12,
-            left: 12,
-            child: const RadarIntensityLegend(bands: _kStaticBands),
-          ),
-
-          // ── Frame counter ────────────────────────────────────────────────
-          if (hasFrames)
-            Positioned(
-              bottom: timelineH + 12,
-              right: 12,
-              child: _FrameCounter(
-                current: _currentIndex + 1,
-                total: frames.length,
-              ),
-            ),
-
-          // ── Timeline scrubber ────────────────────────────────────────────
-          if (hasFrames)
-            Positioned(
-              left: 0, right: 0, bottom: 0,
-              child: RadarTimeline(
-                frames: frames,
-                selectedIndex: _currentIndex,
-                isPlaying: _isPlaying,
-                onFrameSelected: (i) => _selectFrame(frames, i),
-                onPlayPause: () => _togglePlayPause(frames),
-              ),
+            RadarTimeline(
+              frames: frames,
+              selectedIndex: _currentIndex,
+              isPlaying: _isPlaying,
+              onFrameSelected: (i) => _selectFrame(frames, i),
+              onPlayPause: () => _togglePlayPause(frames),
             ),
         ],
       ),
