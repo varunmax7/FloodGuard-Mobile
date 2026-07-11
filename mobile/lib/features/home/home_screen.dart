@@ -4,9 +4,9 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart' hide LocationServiceDisabledException;
 import '../../core/providers/api_providers.dart';
 import '../../data/api/exceptions.dart';
-import '../../data/models/risk_location.dart';
 import '../../data/models/risk_overview.dart';
 import '../../design/theme/app_theme.dart';
 import '../../design/widgets/alert_banner.dart';
@@ -60,7 +60,8 @@ class _HomeContent extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(personalRiskProvider);
-        await ref.refresh(riskOverviewProvider.future);
+        ref.invalidate(riskOverviewProvider);
+        await ref.read(riskOverviewProvider.future);
       },
       color: AppColors.blue600,
       child: ListView(
@@ -155,6 +156,427 @@ class _HomeContent extends StatelessWidget {
                       ],
                     ],
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Personal risk card ────────────────────────────────────────────────────────
+
+class _PersonalRiskCard extends ConsumerWidget {
+  const _PersonalRiskCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(personalRiskProvider);
+
+    return async.when(
+      loading: () => const _PersonalRiskSkeleton(),
+      error: (err, _) {
+        if (err is LocationPermissionDeniedException) {
+          return _PersonalRiskPrompt(
+            icon: Icons.location_off_outlined,
+            title: 'See risk at your exact spot',
+            message: err.permanent
+                ? 'Location permission is turned off. Enable it in Settings.'
+                : 'Share your location to see risk right where you are.',
+            actionLabel: err.permanent ? 'Open settings' : 'Allow location',
+            onAction: () async {
+              if (err.permanent) {
+                await Geolocator.openAppSettings();
+              }
+              ref.invalidate(personalRiskProvider);
+            },
+          );
+        }
+        if (err is LocationServiceDisabledException) {
+          return _PersonalRiskPrompt(
+            icon: Icons.gps_off_outlined,
+            title: 'Turn on Location Services',
+            message: 'Your device has location turned off. Enable it to see your personal risk.',
+            actionLabel: 'Open settings',
+            onAction: () async {
+              await Geolocator.openLocationSettings();
+              ref.invalidate(personalRiskProvider);
+            },
+          );
+        }
+        if (err is OutsideCoverageException) {
+          return const _PersonalRiskInfo(
+            icon: Icons.explore_off_outlined,
+            title: 'Outside coverage',
+            message: 'FloodGuard currently covers only the GHMC area (Hyderabad).',
+          );
+        }
+        if (err is StaleForecastException) {
+          return _PersonalRiskInfo(
+            icon: Icons.satellite_alt_outlined,
+            title: 'Waiting for live data',
+            message: err.lastUpdate != null
+                ? 'Feed last reported at ${err.lastUpdate!.toLocal().hour.toString().padLeft(2, "0")}:${err.lastUpdate!.toLocal().minute.toString().padLeft(2, "0")}.'
+                : 'Weather feed has not started reporting yet.',
+          );
+        }
+        return _PersonalRiskPrompt(
+          icon: Icons.cloud_off_outlined,
+          title: 'Couldn\'t load your risk',
+          message: 'Something went wrong. Try again in a moment.',
+          actionLabel: 'Retry',
+          onAction: () => ref.invalidate(personalRiskProvider),
+        );
+      },
+      data: (personal) => _PersonalRiskContent(
+        personal: personal,
+        onViewDetails: () {
+          final h3 = personal.risk.h3Index;
+          if (h3 == null) return;
+          final uri = Uri(
+            path: '/area/$h3',
+            queryParameters: {
+              'lat': personal.lat.toString(),
+              'lng': personal.lng.toString(),
+            },
+          );
+          context.push(uri.toString());
+        },
+      ),
+    );
+  }
+}
+
+class _PersonalRiskContent extends StatelessWidget {
+  final PersonalRisk personal;
+  final VoidCallback onViewDetails;
+
+  const _PersonalRiskContent({
+    required this.personal,
+    required this.onViewDetails,
+  });
+
+  Color _tint(String level) {
+    switch (level) {
+      case 'SEVERE': return AppColors.riskSevere;
+      case 'HIGH':   return AppColors.riskHigh;
+      case 'MODERATE': return AppColors.riskModerate;
+      default: return AppColors.riskLow;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = personal.risk;
+    final tint = _tint(r.riskLevel);
+    final locationLabel = r.wardName?.isNotEmpty == true
+        ? r.wardName!
+        : '${personal.lat.toStringAsFixed(3)}° N, ${personal.lng.toStringAsFixed(3)}° E';
+
+    return FgCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Colored accent bar at top matches the risk level
+          Container(height: 4, color: tint),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: tint.withAlpha(26),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.my_location, color: tint, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'You are here',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                          Text(
+                            locationLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    RiskBadge(level: r.riskLevel),
+                  ],
+                ),
+                if (r.plainText.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    r.plainText,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    _MiniStat(
+                      value: (r.rain1h ?? 0).toStringAsFixed(1),
+                      unit: 'mm',
+                      label: 'Rain 1h',
+                      color: AppColors.blue600,
+                    ),
+                    _MiniStat(
+                      value: '${r.confidence}',
+                      unit: '%',
+                      label: 'Confidence',
+                      color: AppColors.riskLow,
+                    ),
+                    _MiniStat(
+                      value: r.hourly.length.toString(),
+                      unit: 'h',
+                      label: 'Forecast',
+                      color: AppColors.riskModerate,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: r.h3Index == null ? null : onViewDetails,
+                    icon: const Icon(Icons.arrow_forward, size: 16),
+                    label: const Text('View area details'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  final String value;
+  final String unit;
+  final String label;
+  final Color color;
+
+  const _MiniStat({
+    required this.value,
+    required this.unit,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+                TextSpan(
+                  text: unit,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PersonalRiskPrompt extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  const _PersonalRiskPrompt({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FgCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34, height: 34,
+                decoration: BoxDecoration(
+                  color: AppColors.blue600.withAlpha(26),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: AppColors.blue600, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      message,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: onAction,
+              child: Text(actionLabel),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PersonalRiskInfo extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+
+  const _PersonalRiskInfo({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FgCard(
+      child: Row(
+        children: [
+          Container(
+            width: 34, height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.blue600.withAlpha(26),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: AppColors.blue600, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PersonalRiskSkeleton extends StatelessWidget {
+  const _PersonalRiskSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return FgCard(
+      child: Row(
+        children: const [
+          SkeletonBox(width: 34, height: 34, radius: 10),
+          SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonBox(width: 90, height: 10),
+                SizedBox(height: 6),
+                SkeletonBox(width: 180, height: 14),
+              ],
+            ),
           ),
         ],
       ),

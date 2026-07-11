@@ -180,6 +180,7 @@ def risk_location(request):
 
     return Response({
         "h3_index": h3_index,
+        "ward_name": cell.ward_name or None,
         "risk_level": latest.risk_level,
         "hazard_class": latest.hazard_class,
         "rain_1h": latest.rain_1h,
