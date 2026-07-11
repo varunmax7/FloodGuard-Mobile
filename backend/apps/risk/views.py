@@ -345,3 +345,102 @@ def hourly_forecast(request):
     }
     cache.set(cache_key, payload, timeout=300)
     return Response(payload)
+
+
+# ── GET /risk/weather-now ─────────────────────────────────────────────────────
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def weather_now(request):
+    """
+    Current-conditions snapshot for the Hyderabad centroid pulled live from
+    Open-Meteo. Cached 5 min. Returns 503 if upstream is unreachable.
+
+    Fields:
+      temperature_c, humidity_pct, wind_kmh, wind_dir_deg, weather_code
+    plus a human-friendly `description` derived from the WMO weather code.
+    """
+    import requests
+
+    cache_key = "weather_now_v1"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return Response(cached)
+
+    try:
+        resp = requests.get(
+            OPEN_METEO_FORECAST_URL,
+            params={
+                "latitude": HYD_CENTROID[0],
+                "longitude": HYD_CENTROID[1],
+                "current": (
+                    "temperature_2m,relative_humidity_2m,"
+                    "wind_speed_10m,wind_direction_10m,weather_code"
+                ),
+                "timezone": "UTC",
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        logger.error("weather_now: Open-Meteo unreachable: %s", exc)
+        return Response(
+            {"detail": "Live weather source is not reachable.",
+             "code": "WEATHER_UPSTREAM_DOWN"},
+            status=503,
+        )
+
+    cur = data.get("current") or {}
+    code = int(cur.get("weather_code") or 0)
+
+    payload = {
+        "generated_at": timezone.now().isoformat(),
+        "observed_at": cur.get("time"),
+        "temperature_c": round(float(cur.get("temperature_2m") or 0), 1),
+        "humidity_pct": int(cur.get("relative_humidity_2m") or 0),
+        "wind_kmh": round(float(cur.get("wind_speed_10m") or 0), 1),
+        "wind_dir_deg": int(cur.get("wind_direction_10m") or 0),
+        "weather_code": code,
+        "description": _wmo_description(code),
+    }
+    cache.set(cache_key, payload, timeout=300)
+    return Response(payload)
+
+
+# WMO weather codes → concise human-readable descriptions.
+# Reference: https://open-meteo.com/en/docs#weathervariables
+_WMO_DESCRIPTIONS = {
+    0: "Clear sky",
+    1: "Mainly clear",
+    2: "Partly cloudy",
+    3: "Overcast",
+    45: "Fog",
+    48: "Rime fog",
+    51: "Light drizzle",
+    53: "Drizzle",
+    55: "Heavy drizzle",
+    56: "Freezing drizzle",
+    57: "Freezing drizzle",
+    61: "Light rain",
+    63: "Rain",
+    65: "Heavy rain",
+    66: "Freezing rain",
+    67: "Freezing rain",
+    71: "Light snow",
+    73: "Snow",
+    75: "Heavy snow",
+    77: "Snow grains",
+    80: "Rain showers",
+    81: "Rain showers",
+    82: "Violent rain showers",
+    85: "Snow showers",
+    86: "Snow showers",
+    95: "Thunderstorm",
+    96: "Thunderstorm with hail",
+    99: "Thunderstorm with hail",
+}
+
+
+def _wmo_description(code: int) -> str:
+    return _WMO_DESCRIPTIONS.get(code, "Unknown")

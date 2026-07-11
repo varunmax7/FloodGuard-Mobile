@@ -12,6 +12,7 @@ import '../../data/api/exceptions.dart';
 import '../../data/models/flood_report.dart';
 import '../../data/models/hourly_forecast.dart';
 import '../../data/models/risk_overview.dart';
+import '../../data/models/weather_now.dart';
 import '../../design/theme/app_theme.dart';
 import '../../design/widgets/alert_banner.dart';
 import '../../design/widgets/fg_app_header.dart';
@@ -65,6 +66,7 @@ class _HomeContent extends StatelessWidget {
       onRefresh: () async {
         ref.invalidate(personalRiskProvider);
         ref.invalidate(hourlyForecastProvider);
+        ref.invalidate(weatherNowProvider);
         ref.invalidate(nearbyReportsFromMeProvider);
         ref.invalidate(riskOverviewProvider);
         await ref.read(riskOverviewProvider.future);
@@ -75,6 +77,10 @@ class _HomeContent extends StatelessWidget {
         children: [
           // ── Personal risk card (top — user's current location) ──────────
           const _PersonalRiskCard(),
+          const SizedBox(height: 12),
+
+          // ── Ambient weather chip (current conditions) ───────────────────
+          const _WeatherNowChip(),
           const SizedBox(height: 16),
 
           // ── Rain forecast strip (next 48h) ──────────────────────────────
@@ -1090,6 +1096,122 @@ class _NearbyReportsSkeleton extends StatelessWidget {
                 SkeletonBox(width: 140, height: 12),
                 SizedBox(height: 6),
                 SkeletonBox(width: 200, height: 10),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Weather-now ambient chip ──────────────────────────────────────────────────
+
+class _WeatherNowChip extends ConsumerWidget {
+  const _WeatherNowChip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(weatherNowProvider);
+    return async.when(
+      loading: () => const _WeatherNowSkeleton(),
+      // Ambient chip; silent when it fails so it doesn't nag.
+      error: (_, __) => const SizedBox.shrink(),
+      data: (w) => _WeatherNowContent(weather: w),
+    );
+  }
+}
+
+class _WeatherNowContent extends StatelessWidget {
+  final WeatherNow weather;
+  const _WeatherNowContent({required this.weather});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.blue600.withAlpha(20),
+            AppColors.blue600.withAlpha(4),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.blue600.withAlpha(30), width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(weather.icon, color: AppColors.blue600, size: 26),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      '${weather.temperatureC.toStringAsFixed(0)}°',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        weather.description,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${weather.humidityPct}% humidity  ·  ${weather.windKmh.toStringAsFixed(0)} km/h ${weather.windDirCompass}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeatherNowSkeleton extends StatelessWidget {
+  const _WeatherNowSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          SkeletonBox(width: 26, height: 26, radius: 6),
+          SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonBox(width: 120, height: 14),
+                SizedBox(height: 6),
+                SkeletonBox(width: 180, height: 10),
               ],
             ),
           ),

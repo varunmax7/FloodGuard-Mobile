@@ -70,6 +70,11 @@ class FloodGuardApi {
     return res.data!;
   }
 
+  Future<Map<String, dynamic>> getWeatherNow() async {
+    final res = await _dio.get<Map<String, dynamic>>('/risk/weather-now/');
+    return res.data!;
+  }
+
   Future<List<dynamic>> getRadarFrames({String? since}) async {
     final res = await _dio.get<List<dynamic>>(
       '/radar/frames/',

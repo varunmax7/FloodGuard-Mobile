@@ -15,6 +15,7 @@ import '../../core/providers/api_providers.dart';
 import '../../data/models/flood_report.dart';
 import '../../data/models/hourly_forecast.dart';
 import '../../data/models/risk_location.dart';
+import '../../data/models/weather_now.dart';
 
 class PersonalRisk {
   final double lat;
@@ -99,6 +100,11 @@ class OutsideCoverageException implements Exception {
 final hourlyForecastProvider = FutureProvider<HourlyForecast>((ref) async {
   final raw = await ref.read(apiProvider).getHourlyForecast();
   return HourlyForecast.fromJson(raw);
+});
+
+final weatherNowProvider = FutureProvider<WeatherNow>((ref) async {
+  final raw = await ref.read(apiProvider).getWeatherNow();
+  return WeatherNow.fromJson(raw);
 });
 
 /// Nearby flood reports centred on the user's current location.
