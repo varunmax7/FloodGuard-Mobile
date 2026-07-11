@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/api_providers.dart';
 import '../../data/api/exceptions.dart';
+import '../../data/models/risk_location.dart';
 import '../../data/models/risk_overview.dart';
 import '../../design/theme/app_theme.dart';
 import '../../design/widgets/alert_banner.dart';
@@ -14,6 +15,8 @@ import '../../design/widgets/fg_card.dart';
 import '../../design/widgets/risk_dot.dart';
 import '../../design/widgets/risk_donut.dart';
 import '../../design/widgets/skeleton_loader.dart';
+import 'package:go_router/go_router.dart';
+import 'home_providers.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -55,11 +58,18 @@ class _HomeContent extends StatelessWidget {
         .toList();
 
     return RefreshIndicator(
-      onRefresh: () => ref.refresh(riskOverviewProvider.future),
+      onRefresh: () async {
+        ref.invalidate(personalRiskProvider);
+        await ref.refresh(riskOverviewProvider.future);
+      },
       color: AppColors.blue600,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
+          // ── Personal risk card (top — user's current location) ──────────
+          const _PersonalRiskCard(),
+          const SizedBox(height: 16),
+
           // ── Alert banner ────────────────────────────────────────────────
           if (highRiskHotspots.isNotEmpty) ...[
             AlertBanner(hotspots: highRiskHotspots),
