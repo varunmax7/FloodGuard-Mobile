@@ -268,8 +268,8 @@ class _PersonalRiskContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = personal.risk;
     final tint = _tint(r.riskLevel);
-    final locationLabel = r.wardName?.isNotEmpty == true
-        ? r.wardName!
+    final locationLabel = personal.areaName?.isNotEmpty == true
+        ? personal.areaName!
         : '${personal.lat.toStringAsFixed(3)}° N, ${personal.lng.toStringAsFixed(3)}° E';
 
     return FgCard(
