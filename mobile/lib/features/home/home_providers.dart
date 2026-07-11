@@ -12,6 +12,8 @@ import 'package:geocoding/geocoding.dart' as geo;
 import 'package:geolocator/geolocator.dart';
 
 import '../../core/providers/api_providers.dart';
+import '../../data/models/flood_report.dart';
+import '../../data/models/hourly_forecast.dart';
 import '../../data/models/risk_location.dart';
 
 class PersonalRisk {
@@ -93,6 +95,34 @@ class OutsideCoverageException implements Exception {
   @override
   String toString() => 'Location is outside the covered area';
 }
+
+final hourlyForecastProvider = FutureProvider<HourlyForecast>((ref) async {
+  final raw = await ref.read(apiProvider).getHourlyForecast();
+  return HourlyForecast.fromJson(raw);
+});
+
+/// Nearby flood reports centred on the user's current location.
+///
+/// Chained off [personalRiskProvider] — reuses its location result rather than
+/// asking Geolocator again. If the personal provider is still resolving,
+/// permission-denied, or errored, this provider surfaces the same error so
+/// the widget can render the appropriate empty/prompt state.
+const int _kNearbyRadiusM = 5000;
+const int _kNearbyWindowMin = 60;
+
+final nearbyReportsFromMeProvider = FutureProvider<List<FloodReport>>((ref) async {
+  final personal = await ref.watch(personalRiskProvider.future);
+  final raw = await ref.read(apiProvider).getReportsNearby(
+        lat: personal.lat,
+        lng: personal.lng,
+        radiusM: _kNearbyRadiusM,
+        sinceMin: _kNearbyWindowMin,
+      );
+  return raw
+      .whereType<Map<String, dynamic>>()
+      .map(FloodReport.fromJson)
+      .toList();
+});
 
 final personalRiskProvider = FutureProvider<PersonalRisk>((ref) async {
   final serviceOn = await Geolocator.isLocationServiceEnabled();

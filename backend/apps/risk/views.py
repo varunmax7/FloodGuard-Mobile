@@ -272,3 +272,76 @@ def risk_overview(request):
     }
     cache.set(cache_key, data, timeout=60)
     return Response(data)
+
+
+# ── GET /risk/hourly-forecast ─────────────────────────────────────────────────
+
+HYD_CENTROID = (17.3850, 78.4867)
+OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def hourly_forecast(request):
+    """
+    48-hour hourly precipitation forecast for the Hyderabad centroid.
+    Pulled live from Open-Meteo (no API key). Cached 5 min server-side to
+    respect Open-Meteo's rate limits and keep response fast.
+
+    Returns:
+      { generated_at, hours: [{ts, rain_mm}, ...] }
+    Or 503 if Open-Meteo is unreachable.
+    """
+    import requests
+
+    cache_key = "hourly_forecast_v1"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return Response(cached)
+
+    try:
+        resp = requests.get(
+            OPEN_METEO_FORECAST_URL,
+            params={
+                "latitude": HYD_CENTROID[0],
+                "longitude": HYD_CENTROID[1],
+                "hourly": "precipitation",
+                "forecast_days": 3,
+                "timezone": "UTC",
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        logger.error("hourly_forecast: Open-Meteo unreachable: %s", exc)
+        return Response(
+            {
+                "detail": "Live forecast source is not reachable.",
+                "code": "FORECAST_UPSTREAM_DOWN",
+            },
+            status=503,
+        )
+
+    hourly = data.get("hourly") or {}
+    times = hourly.get("time") or []
+    precip = hourly.get("precipitation") or []
+
+    now_iso = timezone.now().strftime("%Y-%m-%dT%H:%M")
+    hours = []
+    for t, p in zip(times, precip):
+        if t < now_iso:
+            continue
+        hours.append({
+            "ts": t,
+            "rain_mm": round(float(p or 0.0), 3),
+        })
+        if len(hours) >= 48:
+            break
+
+    payload = {
+        "generated_at": timezone.now().isoformat(),
+        "hours": hours,
+    }
+    cache.set(cache_key, payload, timeout=300)
+    return Response(payload)

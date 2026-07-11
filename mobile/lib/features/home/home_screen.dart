@@ -2,11 +2,15 @@
 /// risk donut, top hotspot list — all from live /risk/overview.
 library;
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart' hide LocationServiceDisabledException;
+import 'package:intl/intl.dart';
 import '../../core/providers/api_providers.dart';
 import '../../data/api/exceptions.dart';
+import '../../data/models/flood_report.dart';
+import '../../data/models/hourly_forecast.dart';
 import '../../data/models/risk_overview.dart';
 import '../../design/theme/app_theme.dart';
 import '../../design/widgets/alert_banner.dart';
@@ -60,6 +64,8 @@ class _HomeContent extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(personalRiskProvider);
+        ref.invalidate(hourlyForecastProvider);
+        ref.invalidate(nearbyReportsFromMeProvider);
         ref.invalidate(riskOverviewProvider);
         await ref.read(riskOverviewProvider.future);
       },
@@ -69,6 +75,14 @@ class _HomeContent extends StatelessWidget {
         children: [
           // ── Personal risk card (top — user's current location) ──────────
           const _PersonalRiskCard(),
+          const SizedBox(height: 16),
+
+          // ── Rain forecast strip (next 48h) ──────────────────────────────
+          const _ForecastStripCard(),
+          const SizedBox(height: 16),
+
+          // ── Nearby community reports (5km, last 60 min) ─────────────────
+          const _NearbyReportsCard(),
           const SizedBox(height: 16),
 
           // ── Alert banner ────────────────────────────────────────────────
@@ -575,6 +589,507 @@ class _PersonalRiskSkeleton extends StatelessWidget {
                 SkeletonBox(width: 90, height: 10),
                 SizedBox(height: 6),
                 SkeletonBox(width: 180, height: 14),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Forecast strip card (next 48h rain) ───────────────────────────────────────
+
+class _ForecastStripCard extends ConsumerWidget {
+  const _ForecastStripCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(hourlyForecastProvider);
+    return async.when(
+      loading: () => const _ForecastStripSkeleton(),
+      error: (err, _) => _PersonalRiskInfo(
+        icon: Icons.cloud_off_outlined,
+        title: 'Forecast unavailable',
+        message:
+            'Couldn\'t load the 48-hour rainfall forecast. Pull to refresh.',
+      ),
+      data: (fc) => _ForecastStripContent(forecast: fc),
+    );
+  }
+}
+
+class _ForecastStripContent extends StatelessWidget {
+  final HourlyForecast forecast;
+  const _ForecastStripContent({required this.forecast});
+
+  Color _colorFor(double mm) {
+    if (mm >= 10) return AppColors.riskSevere;
+    if (mm >= 5)  return AppColors.riskHigh;
+    if (mm >= 2)  return AppColors.riskModerate;
+    if (mm >= 0.5) return AppColors.blue600;
+    return AppColors.blue600.withAlpha(90);
+  }
+
+  String _peakLabel(HourlyForecastPoint p) {
+    final local = p.ts.toLocal();
+    final now = DateTime.now();
+    final sameDay = local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+    final hourFmt = DateFormat.j();
+    if (sameDay) return 'today ${hourFmt.format(local)}';
+    final tomorrow = now.add(const Duration(days: 1));
+    if (local.year == tomorrow.year &&
+        local.month == tomorrow.month &&
+        local.day == tomorrow.day) {
+      return 'tomorrow ${hourFmt.format(local)}';
+    }
+    return '${DateFormat.E().format(local)} ${hourFmt.format(local)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hours = forecast.hours;
+    final peak = forecast.peak;
+    final total = forecast.totalRainMm;
+    final maxY = (hours.isEmpty ? 1.0 : hours.map((h) => h.rainMm).reduce((a, b) => a > b ? a : b));
+    // Give the chart some headroom so bars don't hug the top on low-rain days.
+    final chartMax = (maxY < 1.0 ? 1.0 : maxY * 1.15);
+
+    final summary = (peak == null || peak.rainMm < 0.1)
+        ? 'No rain expected in the next ${hours.length} hours'
+        : 'Peak ${peak.rainMm.toStringAsFixed(1)} mm ${_peakLabel(peak)}  ·  Total ${total.toStringAsFixed(1)} mm';
+
+    return FgCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppColors.blue600.withAlpha(26),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.grain_outlined,
+                    color: AppColors.blue600, size: 18),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Next 48 hours',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            summary,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textMuted,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Fixed 120px keeps the card compact and predictable across screen
+          // sizes; the BarChart is responsive within it and each bar auto-widens
+          // to fill.
+          SizedBox(
+            height: 120,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Show ~6-8 axis labels regardless of screen width. Round the
+                // step to a multiple of 3 so labels land on friendly clock
+                // times (3am, 6am, 9am, ...).
+                final targetLabels = constraints.maxWidth < 320 ? 4 : 6;
+                final rawStep = (hours.length / targetLabels).ceil();
+                final labelStep = ((rawStep + 2) ~/ 3) * 3;
+                final barWidth = hours.length <= 24 ? 6.0 : 4.0;
+
+                return BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceEvenly,
+                    maxY: chartMax,
+                    minY: 0,
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        tooltipMargin: 4,
+                        tooltipPadding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 4),
+                        getTooltipItem: (group, groupIdx, rod, rodIdx) {
+                          final h = hours[group.x];
+                          return BarTooltipItem(
+                            '${h.rainMm.toStringAsFixed(1)} mm\n${DateFormat('E h a').format(h.ts.toLocal())}',
+                            const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    // Faint dashed reference lines make the chart look intentional
+                    // even on dry days when every bar is 0.
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: chartMax / 2,
+                      getDrawingHorizontalLine: (v) => FlLine(
+                        color: AppColors.textMuted.withAlpha(30),
+                        strokeWidth: 1,
+                        dashArray: const [4, 4],
+                      ),
+                    ),
+                    borderData: FlBorderData(show: false),
+                    titlesData: FlTitlesData(
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          // Reserve enough vertical room for the axis label
+                          // + its padding so it never clips.
+                          reservedSize: 26,
+                          getTitlesWidget: (value, meta) {
+                            final idx = value.toInt();
+                            if (idx < 0 || idx >= hours.length) {
+                              return const SizedBox.shrink();
+                            }
+                            // Skip most labels; only draw one every labelStep
+                            // bars. The very last bar always gets a label so
+                            // users know the chart ends at "48h from now".
+                            final isLast = idx == hours.length - 1;
+                            if (idx % labelStep != 0 && !isLast) {
+                              return const SizedBox.shrink();
+                            }
+                            final label = DateFormat('h a')
+                                .format(hours[idx].ts.toLocal())
+                                .toUpperCase();
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                label,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    barGroups: [
+                      for (int i = 0; i < hours.length; i++)
+                        BarChartGroupData(
+                          x: i,
+                          barRods: [
+                            BarChartRodData(
+                              toY: hours[i].rainMm,
+                              color: _colorFor(hours[i].rainMm),
+                              width: barWidth,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ForecastStripSkeleton extends StatelessWidget {
+  const _ForecastStripSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return FgCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          SkeletonBox(width: 140, height: 14),
+          SizedBox(height: 8),
+          SkeletonBox(width: double.infinity, height: 96, radius: 8),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Nearby community reports card ─────────────────────────────────────────────
+
+class _NearbyReportsCard extends ConsumerWidget {
+  const _NearbyReportsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(nearbyReportsFromMeProvider);
+
+    return async.when(
+      loading: () => const _NearbyReportsSkeleton(),
+      // Silent when we don't yet have a location or the personal chain errored —
+      // the personal risk card is already prompting the user; no need to
+      // duplicate the ask.
+      error: (err, _) {
+        if (err is LocationPermissionDeniedException ||
+            err is LocationServiceDisabledException ||
+            err is OutsideCoverageException ||
+            err is StaleForecastException) {
+          return const SizedBox.shrink();
+        }
+        return const _PersonalRiskInfo(
+          icon: Icons.cloud_off_outlined,
+          title: 'Nearby reports unavailable',
+          message: 'Pull to refresh to try again.',
+        );
+      },
+      data: (reports) => _NearbyReportsContent(reports: reports),
+    );
+  }
+}
+
+class _NearbyReportsContent extends StatelessWidget {
+  final List<FloodReport> reports;
+  const _NearbyReportsContent({required this.reports});
+
+  bool _severe(FloodReport r) =>
+      r.depth == 'WAIST' || r.depth == 'VEHICLE' || r.road == 'BLOCKED';
+
+  @override
+  Widget build(BuildContext context) {
+    final count = reports.length;
+    final severe = reports.where(_severe).length;
+
+    if (count == 0) {
+      return FgCard(
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppColors.riskLow.withAlpha(26),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.check_circle_outline,
+                  color: AppColors.riskLow, size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'All clear nearby',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'No flood reports within 5 km in the last hour.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final tint = severe > 0 ? AppColors.riskHigh : AppColors.riskModerate;
+    final headline = severe > 0
+        ? '$count nearby report${count == 1 ? "" : "s"}  ·  $severe severe'
+        : '$count nearby report${count == 1 ? "" : "s"}';
+
+    return FgCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(height: 4, color: tint),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: tint.withAlpha(26),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.groups_outlined, color: tint, size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            headline,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Within 5 km in the last hour',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                for (final r in reports.take(3)) ...[
+                  _NearbyReportRow(report: r),
+                  if (r != reports.take(3).last)
+                    const Divider(height: 12, thickness: 0.5),
+                ],
+                if (reports.length > 3) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '+ ${reports.length - 3} more',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NearbyReportRow extends StatelessWidget {
+  final FloodReport report;
+  const _NearbyReportRow({required this.report});
+
+  IconData _depthIcon() => switch (report.depth) {
+        'WAIST' || 'VEHICLE' => Icons.warning_amber_rounded,
+        'KNEE' => Icons.water_drop,
+        _ => Icons.water_drop_outlined,
+      };
+
+  Color _depthColor() => switch (report.depth) {
+        'WAIST' || 'VEHICLE' => AppColors.riskSevere,
+        'KNEE' => AppColors.riskHigh,
+        'ANKLE' => AppColors.riskModerate,
+        _ => AppColors.blue600,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _depthColor();
+    return Row(
+      children: [
+        Icon(_depthIcon(), color: color, size: 16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+              children: [
+                TextSpan(text: report.depthLabel),
+                const TextSpan(
+                    text: '  ·  ',
+                    style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.w400)),
+                TextSpan(
+                  text: report.roadLabel,
+                  style: TextStyle(
+                    color: report.road == 'BLOCKED' ? AppColors.riskSevere : AppColors.textMuted,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (report.timeAgo != null)
+          Text(
+            report.timeAgo!,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textMuted,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _NearbyReportsSkeleton extends StatelessWidget {
+  const _NearbyReportsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return FgCard(
+      child: Row(
+        children: const [
+          SkeletonBox(width: 34, height: 34, radius: 10),
+          SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonBox(width: 140, height: 12),
+                SizedBox(height: 6),
+                SkeletonBox(width: 200, height: 10),
               ],
             ),
           ),
