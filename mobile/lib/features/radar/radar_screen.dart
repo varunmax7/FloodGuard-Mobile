@@ -14,19 +14,44 @@ import '../../design/widgets/fg_app_header.dart';
 import 'widgets/radar_intensity_legend.dart';
 import 'widgets/radar_timeline.dart';
 
-const _kStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
+// Inline MapLibre style pointing at Esri World Imagery — free, no API key,
+// ships photographic satellite tiles that make the radar overlay look like a
+// TV weather map.
+const _kSatelliteStyle = '''{
+  "version": 8,
+  "sources": {
+    "satellite": {
+      "type": "raster",
+      "tiles": ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      "tileSize": 256,
+      "maxzoom": 19,
+      "attribution": "Tiles © Esri"
+    },
+    "labels": {
+      "type": "raster",
+      "tiles": ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
+      "tileSize": 256,
+      "maxzoom": 14
+    }
+  },
+  "layers": [
+    {"id": "satellite", "type": "raster", "source": "satellite"},
+    {"id": "labels", "type": "raster", "source": "labels", "paint": {"raster-opacity": 0.9}}
+  ]
+}''';
 const _kHydCenter = LatLng(17.3850, 78.4867);
 const _kAnimInterval = Duration(milliseconds: 800);
 
-// Static dBZ colour scale — always shown in legend regardless of live data
+// Static dBZ colour scale — matches RainViewer colorScheme=4 (Weather Channel).
+// Shown in the legend regardless of live data.
 const _kStaticBands = [
-  RadarIntensityBand(dbzMin: 0,  dbzMax: 10, color: '#00ffff', label: 'Trace'),
-  RadarIntensityBand(dbzMin: 10, dbzMax: 20, color: '#00aaff', label: 'Light'),
-  RadarIntensityBand(dbzMin: 20, dbzMax: 30, color: '#00cc00', label: 'Moderate'),
+  RadarIntensityBand(dbzMin: 0,  dbzMax: 10, color: '#99ff99', label: 'Trace'),
+  RadarIntensityBand(dbzMin: 10, dbzMax: 20, color: '#33cc33', label: 'Light'),
+  RadarIntensityBand(dbzMin: 20, dbzMax: 30, color: '#008800', label: 'Moderate'),
   RadarIntensityBand(dbzMin: 30, dbzMax: 40, color: '#ffff00', label: 'Heavy'),
-  RadarIntensityBand(dbzMin: 40, dbzMax: 50, color: '#ff9900', label: 'Very heavy'),
-  RadarIntensityBand(dbzMin: 50, dbzMax: 60, color: '#ff0000', label: 'Intense'),
-  RadarIntensityBand(dbzMin: 60, dbzMax: 75, color: '#cc00cc', label: 'Extreme'),
+  RadarIntensityBand(dbzMin: 40, dbzMax: 50, color: '#ff8800', label: 'Very heavy'),
+  RadarIntensityBand(dbzMin: 50, dbzMax: 60, color: '#cc0000', label: 'Intense'),
+  RadarIntensityBand(dbzMin: 60, dbzMax: 75, color: '#ff00ff', label: 'Extreme'),
 ];
 
 // ── Provider ──────────────────────────────────────────────────────────────────
@@ -157,7 +182,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
       await _ctrl!.addRasterLayer(
         'radar-live',
         'radar-live-layer',
-        const RasterLayerProperties(rasterOpacity: 0.7),
+        const RasterLayerProperties(rasterOpacity: 0.8),
       );
     } catch (e) {
       debugPrint('[RadarScreen] tile swap: $e');
@@ -210,7 +235,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
               children: [
                 // ── Base map — fills the expanded area ─────────────────────
                 MapLibreMap(
-                  styleString: _kStyleUrl,
+                  styleString: _kSatelliteStyle,
                   initialCameraPosition: const CameraPosition(
                     target: _kHydCenter,
                     zoom: 9.5,

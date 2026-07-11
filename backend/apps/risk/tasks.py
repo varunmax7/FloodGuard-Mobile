@@ -60,9 +60,10 @@ def recompute_all_risk(self):
         )
 
         # ── Load ForecastStage for latest run ─────────────────────────────────
+        # Accept both legacy ECMWF (seeded/mock) and live OPEN_METEO rows.
         stages = list(
             ForecastStage.objects
-            .filter(run_ts=latest_run_ts, source="ECMWF")
+            .filter(run_ts=latest_run_ts, source__in=["ECMWF", "OPEN_METEO"])
             .select_related("hex")
         )
 

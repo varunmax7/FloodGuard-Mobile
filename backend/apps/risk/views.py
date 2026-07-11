@@ -1,12 +1,15 @@
 """risk/views.py — /risk/hexes, /risk/location, /risk/overview endpoints."""
 import json
 import logging
+from datetime import timedelta
 
 import h3
+from django.conf import settings
 from django.contrib.gis.db.models.functions import AsGeoJSON
 from django.contrib.gis.geos import Polygon
 from django.core.cache import cache
 from django.db.models import Avg, Count, Max
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -22,6 +25,33 @@ LEVEL_ORDER = {"LOW": 0, "MODERATE": 1, "HIGH": 2, "SEVERE": 3}
 
 def _latest_ts():
     return RiskSnapshot.objects.aggregate(Max("ts"))["ts__max"]
+
+
+def _stale_response(ts):
+    """Return a 503 payload signalling that no fresh risk data is available.
+    Explicit signal to the client so it can show 'no live data' instead of stale values."""
+    return Response(
+        {
+            "detail": "No live forecast data available. The upstream weather feed is not reporting.",
+            "code": "STALE_FORECAST",
+            "last_update": ts.isoformat() if ts else None,
+            "max_age_hours": getattr(settings, "RISK_FRESHNESS_HOURS", 2),
+        },
+        status=503,
+    )
+
+
+def _freshness_check():
+    """Return (last_success_ts, is_fresh) based on when the forecast feed last
+    landed data. RiskSnapshot.ts points at a future hour (when the risk applies),
+    so it can't be used to detect staleness — we track the ingest itself.
+    Returns (None, False) if the feed has never succeeded."""
+    from apps.ingest.models import IngestLog
+    max_age = timedelta(hours=getattr(settings, "RISK_FRESHNESS_HOURS", 2))
+    log = IngestLog.objects.filter(feed="ecmwf").first()
+    if not log or not log.last_success:
+        return None, False
+    return log.last_success, (timezone.now() - log.last_success) <= max_age
 
 
 # ── GET /risk/hexes?bbox=min_lng,min_lat,max_lng,max_lat&ts= ─────────────────
@@ -46,22 +76,26 @@ def risk_hexes(request):
     except (ValueError, TypeError):
         return Response({"detail": "Invalid bbox format. Use: min_lng,min_lat,max_lng,max_lat"}, status=400)
 
+    # Freshness gate first — before cache — so a stale feed always surfaces.
+    # Explicit ?ts= (admin backfill) bypasses the gate.
+    if ts_str:
+        from django.utils.dateparse import parse_datetime
+        ts = parse_datetime(ts_str) or _latest_ts()
+    else:
+        last_success, fresh = _freshness_check()
+        if not fresh:
+            return _stale_response(last_success)
+        ts = _latest_ts()
+
+    if ts is None:
+        return _stale_response(None)
+
     cache_key = f"risk_hexes:{bbox_str}:{ts_str}"
     cached = cache.get(cache_key)
     if cached is not None:
         return Response(cached)
 
     bbox_poly = Polygon.from_bbox((min_lng, min_lat, max_lng, max_lat))
-
-    ts = _latest_ts()
-    if ts_str:
-        from django.utils.dateparse import parse_datetime
-        parsed = parse_datetime(ts_str)
-        if parsed:
-            ts = parsed
-
-    if ts is None:
-        return Response({"type": "FeatureCollection", "features": []})
 
     snapshots = (
         RiskSnapshot.objects
@@ -113,7 +147,12 @@ def risk_location(request):
     except HexCell.DoesNotExist:
         return Response({"detail": "Location is outside the covered area."}, status=404)
 
-    # Latest snapshot
+    # City-wide freshness gate — if the whole system has no fresh data, don't lie
+    # about this location either.
+    global_ts, fresh = _freshness_check()
+    if not fresh:
+        return _stale_response(global_ts)
+
     latest = (
         RiskSnapshot.objects
         .filter(hex=cell)
@@ -122,15 +161,7 @@ def risk_location(request):
     )
 
     if not latest:
-        return Response({
-            "h3_index": h3_index,
-            "risk_level": "LOW",
-            "hazard_class": "LOW",
-            "plain_text": "No forecast data yet — Low risk assumed.",
-            "explanation": "Forecast data not yet available for this location.",
-            "confidence": 0,
-            "hourly": [],
-        })
+        return _stale_response(global_ts)
 
     plain_text, advice = plain_text_generate(latest.risk_level, latest.hazard_class)
 
@@ -174,6 +205,11 @@ def risk_overview(request):
       summary {severe%, high%, moderate%, low%},
       hotspots [top 5 SEVERE/HIGH hexes]
     """
+    # Freshness gate before cache
+    last_success, fresh = _freshness_check()
+    if not fresh:
+        return _stale_response(last_success)
+
     cache_key = "risk_overview"
     cached = cache.get(cache_key)
     if cached is not None:
@@ -181,23 +217,13 @@ def risk_overview(request):
 
     ts = _latest_ts()
     if ts is None:
-        return Response({
-            "forecast_rain_24h": 0,
-            "max_rate_1h": 0,
-            "confidence": 0,
-            "summary": {"severe": 0, "high": 0, "moderate": 0, "low": 100},
-            "hotspots": [],
-        })
+        return _stale_response(last_success)
 
     snapshots = RiskSnapshot.objects.filter(ts=ts)
     total = snapshots.count()
 
     if total == 0:
-        return Response({
-            "forecast_rain_24h": 0, "max_rate_1h": 0, "confidence": 0,
-            "summary": {"severe": 0, "high": 0, "moderate": 0, "low": 100},
-            "hotspots": [],
-        })
+        return _stale_response(last_success)
 
     # Aggregate counts per level
     counts = dict(snapshots.values_list("risk_level").annotate(cnt=Count("id")).values_list("risk_level", "cnt"))

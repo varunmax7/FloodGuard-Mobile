@@ -58,20 +58,21 @@ def ingest_ecmwf(self):
 
     log = _log_start("ecmwf")
     try:
-        mock = getattr(settings, "INGEST_MOCK", True)
-        api_key = getattr(settings, "ECMWF_API_KEY", "")
+        # FORECAST_LIVE overrides the global mock flag for just this feed.
+        mock = getattr(settings, "INGEST_MOCK", True) and not getattr(settings, "FORECAST_LIVE", False)
         run_ts = timezone.now().replace(minute=0, second=0, microsecond=0)
 
-        # Skip if this run_ts was already ingested
-        if ForecastStage.objects.filter(run_ts=run_ts, source="ECMWF").exists():
-            logger.info("ECMWF: run_ts=%s already staged, skipping", run_ts)
+        # Skip if this run_ts was already ingested (either legacy ECMWF-tagged rows
+        # or new OPEN_METEO rows both count — one forecast per run_ts hour is enough)
+        if ForecastStage.objects.filter(run_ts=run_ts, source__in=["ECMWF", "OPEN_METEO"]).exists():
+            logger.info("Forecast: run_ts=%s already staged, skipping", run_ts)
             _log_success(log, 0)
             return 0
 
         hex_cells = list(HexCell.objects.only("h3_index", "centroid"))
-        logger.info("ECMWF: %d hexes, mock=%s, run_ts=%s", len(hex_cells), mock, run_ts)
+        logger.info("Forecast: %d hexes, mock=%s, run_ts=%s", len(hex_cells), mock, run_ts)
 
-        records = parser.fetch_and_parse(run_ts, hex_cells, mock=mock, api_key=api_key)
+        records = parser.fetch_and_parse(run_ts, hex_cells, mock=mock)
 
         hex_map = {c.h3_index: c for c in hex_cells}
         stages = [
@@ -122,12 +123,11 @@ def ingest_aws(self):
 
     log = _log_start("aws")
     try:
-        mock = getattr(settings, "INGEST_MOCK", True)
-        api_url = getattr(settings, "TGDPS_API_URL", "")
-        api_key = getattr(settings, "TGDPS_API_KEY", "")
+        # AWS_LIVE overrides the global mock flag; Open-Meteo needs no key.
+        mock = getattr(settings, "INGEST_MOCK", True) and not getattr(settings, "AWS_LIVE", False)
         ts = timezone.now().replace(second=0, microsecond=0)
 
-        records = parser.fetch_and_parse(ts, mock=mock, api_url=api_url, api_key=api_key)
+        records = parser.fetch_and_parse(ts, mock=mock)
 
         created_obs = 0
         for r in records:
@@ -186,12 +186,11 @@ def ingest_radar(self):
 
     log = _log_start("radar")
     try:
-        mock = getattr(settings, "INGEST_MOCK", True)
-        api_url = getattr(settings, "RADAR_API_URL", "")
-        api_key = getattr(settings, "RADAR_API_KEY", "")
+        # RADAR_LIVE overrides the global mock flag; RainViewer is free/no-key.
+        mock = getattr(settings, "INGEST_MOCK", True) and not getattr(settings, "RADAR_LIVE", False)
         ts = timezone.now().replace(second=0, microsecond=0)
 
-        frame = parser.fetch_and_parse(ts, mock=mock, api_url=api_url, api_key=api_key)
+        frame = parser.fetch_and_parse(ts, mock=mock)
         if frame is None:
             logger.info("Radar: no new frame available")
             _log_success(log, 0)

@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/api/exceptions.dart';
 import '../../data/models/flood_report.dart';
 import '../../data/models/risk_location.dart';
 import '../../design/theme/app_theme.dart';
@@ -100,11 +101,17 @@ class _AreaDetailScreenState extends ConsumerState<AreaDetailScreen> {
             // ── Risk overview card ────────────────────────────────────────────
             locationAsync.when(
               loading: () => const _RiskCardSkeleton(),
-              error: (e, _) => _ErrorCard(
-                message: 'Failed to load risk data',
-                onRetry: () =>
-                    ref.invalidate(riskLocationDataProvider(_coords)),
-              ),
+              error: (e, _) => e is StaleForecastException
+                  ? _NoLiveDataCard(
+                      lastUpdate: e.lastUpdate,
+                      onRetry: () =>
+                          ref.invalidate(riskLocationDataProvider(_coords)),
+                    )
+                  : _ErrorCard(
+                      message: 'Failed to load risk data',
+                      onRetry: () =>
+                          ref.invalidate(riskLocationDataProvider(_coords)),
+                    ),
               data: (data) => _RiskOverviewCard(data: data),
             ),
 
@@ -412,6 +419,56 @@ class _EmptyReportsView extends StatelessWidget {
             'No flood reports found within 1 km in this time window.',
             style: TextStyle(fontSize: 13, color: AppColors.textMuted),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoLiveDataCard extends StatelessWidget {
+  final DateTime? lastUpdate;
+  final VoidCallback onRetry;
+
+  const _NoLiveDataCard({required this.lastUpdate, required this.onRetry});
+
+  String _formatLastUpdate(DateTime ts) {
+    final diff = DateTime.now().difference(ts.toLocal());
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} h ago';
+    return '${diff.inDays} d ago';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FgCard(
+      child: Column(
+        children: [
+          const Icon(Icons.satellite_alt_outlined,
+              size: 36, color: AppColors.blue600),
+          const SizedBox(height: 8),
+          const Text(
+            'No live data yet',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            lastUpdate != null
+                ? 'Weather feed last reported ${_formatLastUpdate(lastUpdate!)}.'
+                : 'The weather feed has not started reporting yet.',
+            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Check again'),
           ),
         ],
       ),

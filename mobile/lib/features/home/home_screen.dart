@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/api_providers.dart';
+import '../../data/api/exceptions.dart';
 import '../../data/models/risk_overview.dart';
 import '../../design/theme/app_theme.dart';
 import '../../design/widgets/alert_banner.dart';
@@ -26,10 +27,15 @@ class HomeScreen extends ConsumerWidget {
       backgroundColor: const Color(0xFFF1F5F9),
       body: overviewAsync.when(
         loading: () => const HomeSkeletonView(),
-        error: (err, _) => _ErrorView(
-          message: err.toString(),
-          onRetry: () => ref.invalidate(riskOverviewProvider),
-        ),
+        error: (err, _) => err is StaleForecastException
+            ? _NoLiveDataView(
+                lastUpdate: err.lastUpdate,
+                onRetry: () => ref.invalidate(riskOverviewProvider),
+              )
+            : _ErrorView(
+                message: err.toString(),
+                onRetry: () => ref.invalidate(riskOverviewProvider),
+              ),
         data: (overview) => _HomeContent(overview: overview, ref: ref),
       ),
     );
@@ -301,6 +307,61 @@ class _EmptyHotspots extends StatelessWidget {
                 fontWeight: FontWeight.w500,
                 color: AppColors.textMuted,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoLiveDataView extends StatelessWidget {
+  final DateTime? lastUpdate;
+  final VoidCallback onRetry;
+
+  const _NoLiveDataView({required this.lastUpdate, required this.onRetry});
+
+  String _formatLastUpdate(DateTime ts) {
+    final local = ts.toLocal();
+    final diff = DateTime.now().difference(local);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} h ago';
+    return '${diff.inDays} d ago';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.satellite_alt_outlined,
+                size: 56, color: AppColors.blue600),
+            const SizedBox(height: 16),
+            const Text(
+              'No live data yet',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              lastUpdate != null
+                  ? 'Weather feed last reported ${_formatLastUpdate(lastUpdate!)}. Waiting for the next update.'
+                  : 'The weather feed has not started reporting yet.',
+              style: const TextStyle(fontSize: 14, color: AppColors.textMuted),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Check again'),
             ),
           ],
         ),

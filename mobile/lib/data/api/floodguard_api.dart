@@ -5,31 +5,64 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/risk_overview.dart';
+import 'exceptions.dart';
 
 class FloodGuardApi {
   final Dio _dio;
 
   FloodGuardApi(this._dio);
 
+  /// Convert a DioException that carries a 503 STALE_FORECAST payload into a
+  /// typed [StaleForecastException]. Other errors are rethrown unchanged.
+  Never _rethrowMaybeStale(DioException e) {
+    final resp = e.response;
+    if (resp?.statusCode == 503 && resp?.data is Map) {
+      final data = resp!.data as Map;
+      if (data['code'] == 'STALE_FORECAST') {
+        throw StaleForecastException(
+          lastUpdate: data['last_update'] is String
+              ? DateTime.tryParse(data['last_update'] as String)
+              : null,
+          maxAgeHours: (data['max_age_hours'] as num?)?.toInt() ?? 0,
+          detail: (data['detail'] as String?) ??
+              'No live forecast data available.',
+        );
+      }
+    }
+    throw e;
+  }
+
   Future<RiskOverview> getRiskOverview() async {
-    final res = await _dio.get<Map<String, dynamic>>('/risk/overview/');
-    return RiskOverview.fromJson(res.data!);
+    try {
+      final res = await _dio.get<Map<String, dynamic>>('/risk/overview/');
+      return RiskOverview.fromJson(res.data!);
+    } on DioException catch (e) {
+      _rethrowMaybeStale(e);
+    }
   }
 
   Future<Map<String, dynamic>> getRiskLocation(double lat, double lng) async {
-    final res = await _dio.get<Map<String, dynamic>>(
-      '/risk/location/',
-      queryParameters: {'lat': lat, 'lng': lng},
-    );
-    return res.data!;
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/risk/location/',
+        queryParameters: {'lat': lat, 'lng': lng},
+      );
+      return res.data!;
+    } on DioException catch (e) {
+      _rethrowMaybeStale(e);
+    }
   }
 
   Future<Map<String, dynamic>> getRiskHexes(String bbox, {String? ts}) async {
-    final res = await _dio.get<Map<String, dynamic>>(
-      '/risk/hexes/',
-      queryParameters: {'bbox': bbox, if (ts != null) 'ts': ts},
-    );
-    return res.data!;
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/risk/hexes/',
+        queryParameters: {'bbox': bbox, if (ts != null) 'ts': ts},
+      );
+      return res.data!;
+    } on DioException catch (e) {
+      _rethrowMaybeStale(e);
+    }
   }
 
   Future<List<dynamic>> getRadarFrames({String? since}) async {
