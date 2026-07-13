@@ -43,15 +43,6 @@ export const adminApi = {
   auditCalibration: () => api.get('/admin/audit/calibration/').then((r) => r.data),
   auditModeration:  () => api.get('/admin/audit/moderation/').then((r) => r.data),
 
-  // Calibration (§2.3)
-  getWeights:    () => api.get('/admin/calibrate/weights/').then((r) => r.data),
-  putWeights: (data: object) => api.put('/admin/calibrate/weights/', data).then((r) => r.data),
-
-  // Moderation (§2.5)
-  moderationQueue: () => api.get('/admin/moderation/queue/').then((r) => r.data),
-  moderationAction: (id: string, action: string) =>
-    api.post(`/admin/moderation/${id}/action/`, { action }).then((r) => r.data),
-
   // §2.3 Calibration Console
   getWeights:         ()                                   => api.get('/admin/calibrate/weights/').then((r) => r.data),
   putWeights:         (data: object)                       => api.put('/admin/calibrate/weights/', data).then((r) => r.data),
@@ -81,7 +72,4 @@ export const adminApi = {
   validateReportsVsRisk:  (from?: string, to?: string) => api.get('/admin/validate/reports-vs-risk/', { params: { from, to } }).then((r) => r.data),
   validateConfusion:      (from?: string, to?: string) => api.get('/admin/validate/confusion/',        { params: { from, to } }).then((r) => r.data),
   validateHotspotRanking: ()                           => api.get('/admin/validate/hotspot-ranking/').then((r) => r.data),
-
-  // Health (§2.4)
-  healthFeeds: () => api.get('/admin/health/feeds/').then((r) => r.data),
 }

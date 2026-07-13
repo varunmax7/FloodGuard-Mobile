@@ -20,6 +20,88 @@ FloodGuard forecasts rainfall down to a ~110 m hex grid across the GHMC area, mi
 
 All feeds respect a **stale-forecast contract**: if the upstream feed hasn't reported within `RISK_FRESHNESS_HOURS` (default 2), every `/risk/*` endpoint returns `503 STALE_FORECAST` with a `last_update` timestamp instead of serving cached/seeded values. The mobile app renders a "No live data yet" state rather than lying to users.
 
+## External APIs — what we use and why
+
+FloodGuard has a hard rule: **no paid weather APIs, no vendor lock-in on core data**. Every external API below was picked because it is free, keyless (or nearly so), well-documented, and stable enough to run a public safety product on. Where a paid alternative exists, we note it.
+
+### 1. Open-Meteo Forecast API — rainfall forecast
+
+- **What**: Hourly total precipitation forecast, sampled at the centroid of every H3 res-9 hex in the GHMC area (~13,875 points).
+- **Where in code**: `backend/apps/ingest/parsers/ecmwf.py` → `ingest_ecmwf` Celery task → `ForecastStage` → `RiskSnapshot` via `recompute_all_risk`.
+- **Why chosen**:
+  - **Free and keyless** — no API key, no monthly quota to babysit, no billing surprises during a monsoon spike.
+  - **ECMWF-backed** — Open-Meteo aggregates ECMWF IFS and other global models. ECMWF is the gold standard for medium-range precipitation forecasting.
+  - **Hex-native** — accepts arbitrary lat/lng, which lets us sample per H3 centroid instead of interpolating from a coarse grid.
+  - **Batchable** — one HTTP call can return forecasts for many points, which keeps ingest under the hourly Celery beat cadence.
+- **What we'd swap to**: If we ever needed higher-resolution nowcasts, IMD's Meghdoot or a paid nowcast product (Tomorrow.io) — but Open-Meteo's 48h horizon covers our alerting window.
+
+### 2. Open-Meteo Historical / "Weather Now" — current conditions + station observations
+
+- **What**: (a) Current temperature, humidity, wind, description for the Home screen chip. (b) Recent-past rainfall used as pseudo-station observations for bias correction.
+- **Where in code**: `backend/apps/ingest/parsers/aws.py` (`ingest_aws`) and `apps/risk/views.py::weather_now`.
+- **Why chosen**:
+  - **Same vendor as forecast** — one integration surface, one failure mode to monitor.
+  - **Fills the AWS gap** — India's live automatic-weather-station (AWS) feed is patchy and requires MoU-level access. Open-Meteo's past-hour observations are a viable substitute for computing forecast-vs-actual bias factors per hex.
+  - **Feeds the bias-correction loop** — `recompute_bias` compares observed rain against forecasted rain per station and stores a multiplier back into `BiasFactor`, which the risk engine applies to the next forecast cycle.
+
+### 3. RainViewer — precipitation radar
+
+- **What**: Tile URLs and per-frame metadata for the Live Radar tab and the Map screen radar overlay. 10-minute cadence, 2h history + short nowcast.
+- **Where in code**: `backend/apps/ingest/parsers/radar.py`, `ingest_radar`, `apps.radar.models.RadarFrame`, `/api/v1/radar/frames`.
+- **Why chosen**:
+  - **Free public tiles** — no key, no attribution requirements beyond a small credit.
+  - **Global coverage** — works over Hyderabad without needing an IMD DWR feed (which is not publicly available in a machine-readable form).
+  - **Client-side rendering** — the tiles are consumed directly by MapLibre GL, so the backend only stores frame timestamps + URLs (cheap).
+  - **Nowcast frames included** — RainViewer publishes a short forecast strip, which the mobile Live Radar player can loop past+future in one control.
+
+### 4. OpenStreetMap Nominatim (fallback) + system geocoder — reverse geocoding
+
+- **What**: Turning a GPS coordinate into "You are in Madhapur" on Home + Report screens.
+- **Where in code**: Mobile `lib/features/home/home_providers.dart` via `geocoding` plugin (system geocoder first, then Nominatim fallback).
+- **Why chosen**:
+  - **Zero cost, zero key** — Google Places would give better area names in India but costs per request and requires a billing account.
+  - **System geocoder first** — on iOS/Android the OS geocoder is free and offline-capable; Nominatim only kicks in when the OS returns nothing (Flutter Web, some Android OEMs).
+  - **Good enough for ward-level display** — we only need neighbourhood-level names, not building-level accuracy.
+
+### 5. Firebase Phone Auth (OTP) — user sign-in
+
+- **What**: SMS OTP verification. The Firebase ID token is exchanged server-side for a SimpleJWT pair (`/api/v1/auth/otp/verify`).
+- **Where in code**: Mobile `lib/features/auth/*`, backend `apps/auth/views.py::verify_otp`.
+- **Why chosen**:
+  - **India SMS delivery works out of the box** — Twilio and MSG91 need business KYC and cost per SMS; Firebase eats that on the free tier for our volumes.
+  - **Fraud handling included** — reCAPTCHA + app attestation are free with Firebase; rolling our own would be a security liability.
+  - **Dev-mode fallback baked in** — when `FIREBASE_CREDENTIALS_JSON` is empty the backend accepts a fixed dev OTP, which keeps local development and CI unblocked without burning SMS credits.
+
+### 6. Firebase Cloud Messaging — push alerts
+
+- **What**: Fan-out of `HIGH`/`SEVERE` alerts to subscribed devices, plus per-place notifications when a saved location crosses a threshold.
+- **Where in code**: `backend/apps/alerts/tasks.py` (dispatch), `mobile/lib/core/messaging/*` (device registration).
+- **Why chosen**:
+  - **Cross-platform, free** — one API sends to Android, iOS, and Web PWA.
+  - **Topic subscriptions** — every hex has a topic; devices subscribe to the hex(es) covering their saved places, so we don't maintain a per-user delivery list.
+  - **APNs handled transparently** — no separate Apple Push credential rotation to run.
+
+### 7. Sentry — error tracking
+
+- **What**: Unhandled exceptions and performance traces from backend, admin dashboard, and the mobile app.
+- **Where in code**: `backend/floodguard/settings.py::SENTRY_DSN`, `admin/src/main.tsx`, `mobile/lib/main.dart`.
+- **Why chosen**:
+  - **One dashboard across three runtimes** — Python, JS/TS, and Dart all have first-party SDKs.
+  - **Free tier is enough for a single-city product** — we're well under the 5k events/mo cap.
+  - **Optional at build time** — leave `SENTRY_DSN` unset and the SDKs no-op; keeps dev quiet.
+
+### API summary matrix
+
+| API | Cost | Key required | Cadence | Fallback if it fails |
+|---|---|---|---|---|
+| Open-Meteo Forecast | Free | No | Hourly | Serve last good `RiskSnapshot`; after `RISK_FRESHNESS_HOURS` return `503 STALE_FORECAST` |
+| Open-Meteo Now | Free | No | 15 min | Weather chip hidden |
+| RainViewer | Free | No | 10 min | Radar toggle disabled with a note |
+| Nominatim | Free (fair-use) | No | On-demand | System geocoder result; if that's also empty, show raw coordinates |
+| Firebase Auth | Free (fair-use) | Yes (server creds) | On login | Dev-mode fixed OTP when creds missing |
+| Firebase FCM | Free | Yes (server creds) | On alert | Alert stored in DB; user sees it on next app open |
+| Sentry | Free (5k/mo) | Yes (DSN) | Continuous | SDK no-ops when unset |
+
 ## Repository layout
 
 ```
