@@ -25,9 +25,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# ── GDAL env for GeoDjango ────────────────────────────────────────────────────
-ENV GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so
-ENV GEOS_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgeos_c.so.1
+# ── GDAL env for GeoDjango (architecture-agnostic symlinks) ──────────────────
+RUN LIBDIR=$(find /usr/lib -maxdepth 1 -type d -name "*-linux-gnu" | head -1) && \
+    ln -sf $(ls ${LIBDIR}/libgdal.so* | head -1) /usr/local/lib/libgdal.so && \
+    ln -sf $(ls ${LIBDIR}/libgeos_c.so* | head -1) /usr/local/lib/libgeos_c.so.1 && \
+    ldconfig
+ENV GDAL_LIBRARY_PATH=/usr/local/lib/libgdal.so
+ENV GEOS_LIBRARY_PATH=/usr/local/lib/libgeos_c.so.1
 ENV PROJ_LIB=/usr/share/proj
 
 # ── Python setup ──────────────────────────────────────────────────────────────

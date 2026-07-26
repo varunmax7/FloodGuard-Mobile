@@ -11,6 +11,10 @@ class Migration(migrations.Migration):
     dependencies = []
 
     operations = [
+        migrations.RunSQL(
+            "CREATE EXTENSION IF NOT EXISTS postgis",
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         migrations.CreateModel(
             name="HexCell",
             fields=[

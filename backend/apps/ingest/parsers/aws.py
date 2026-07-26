@@ -24,19 +24,46 @@ logger = logging.getLogger("floodguard.ingest.aws")
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_TIMEOUT = 30
 
-# 10 GHMC AWS station locations (TGDPS network — kept as canonical station IDs
-# even when precipitation is sourced from Open-Meteo).
+# One virtual AWS station per Assam district (centroid of the loaded district
+# polygon). Real ground gauges aren't available for free, so precipitation is
+# still sourced from Open-Meteo at these coords — but the station granularity
+# now covers the whole state instead of just Hyderabad.
 STATIONS = [
-    {"station_id": "HYD_AWS_001", "name": "Secunderabad",    "lat": 17.4435, "lng": 78.4987},
-    {"station_id": "HYD_AWS_002", "name": "Hitech City",     "lat": 17.4450, "lng": 78.3762},
-    {"station_id": "HYD_AWS_003", "name": "Kukatpally",      "lat": 17.4947, "lng": 78.3996},
-    {"station_id": "HYD_AWS_004", "name": "LB Nagar",        "lat": 17.3464, "lng": 78.5519},
-    {"station_id": "HYD_AWS_005", "name": "Mehdipatnam",     "lat": 17.3956, "lng": 78.4363},
-    {"station_id": "HYD_AWS_006", "name": "Uppal",           "lat": 17.4046, "lng": 78.5593},
-    {"station_id": "HYD_AWS_007", "name": "Begumpet",        "lat": 17.4449, "lng": 78.4679},
-    {"station_id": "HYD_AWS_008", "name": "Vanasthalipuram", "lat": 17.3540, "lng": 78.5683},
-    {"station_id": "HYD_AWS_009", "name": "Rajendranagar",   "lat": 17.3302, "lng": 78.4014},
-    {"station_id": "HYD_AWS_010", "name": "Alwal",           "lat": 17.5043, "lng": 78.5000},
+    {"station_id": "ASM_AWS_001", "name": "Bajali",                   "lat": 26.5042, "lng": 91.1453},
+    {"station_id": "ASM_AWS_002", "name": "Baksa",                    "lat": 26.6650, "lng": 91.1966},
+    {"station_id": "ASM_AWS_003", "name": "Barpeta",                  "lat": 26.2935, "lng": 90.9633},
+    {"station_id": "ASM_AWS_004", "name": "Biswanath",                "lat": 26.8121, "lng": 93.3128},
+    {"station_id": "ASM_AWS_005", "name": "Bongaigaon",               "lat": 26.3508, "lng": 90.6109},
+    {"station_id": "ASM_AWS_006", "name": "Cachar",                   "lat": 24.8125, "lng": 92.8548},
+    {"station_id": "ASM_AWS_007", "name": "Charaideo",                "lat": 27.0679, "lng": 95.0593},
+    {"station_id": "ASM_AWS_008", "name": "Chirang",                  "lat": 26.6597, "lng": 90.5964},
+    {"station_id": "ASM_AWS_009", "name": "Darrang",                  "lat": 26.4481, "lng": 92.0298},
+    {"station_id": "ASM_AWS_010", "name": "Dhemaji",                  "lat": 27.5810, "lng": 94.7627},
+    {"station_id": "ASM_AWS_011", "name": "Dhubri",                   "lat": 26.1199, "lng": 90.0271},
+    {"station_id": "ASM_AWS_012", "name": "Dibrugarh",                "lat": 27.3679, "lng": 95.0524},
+    {"station_id": "ASM_AWS_013", "name": "Dima Hasao",               "lat": 25.3779, "lng": 93.0309},
+    {"station_id": "ASM_AWS_014", "name": "Goalpara",                 "lat": 26.0484, "lng": 90.6091},
+    {"station_id": "ASM_AWS_015", "name": "Golaghat",                 "lat": 26.4420, "lng": 93.8311},
+    {"station_id": "ASM_AWS_016", "name": "Hailakandi",               "lat": 24.4971, "lng": 92.5878},
+    {"station_id": "ASM_AWS_017", "name": "Hojai",                    "lat": 25.9786, "lng": 92.9791},
+    {"station_id": "ASM_AWS_018", "name": "Jorhat",                   "lat": 26.6956, "lng": 94.2767},
+    {"station_id": "ASM_AWS_019", "name": "Kamrup",                   "lat": 26.1004, "lng": 91.4154},
+    {"station_id": "ASM_AWS_020", "name": "Kamrup Metropolitan",      "lat": 26.1284, "lng": 91.8913},
+    {"station_id": "ASM_AWS_021", "name": "Karbi Anglong",            "lat": 26.1569, "lng": 93.4048},
+    {"station_id": "ASM_AWS_022", "name": "Kokrajhar",                "lat": 26.4932, "lng": 90.1193},
+    {"station_id": "ASM_AWS_023", "name": "Lakhimpur",                "lat": 27.1705, "lng": 94.1300},
+    {"station_id": "ASM_AWS_024", "name": "Majuli",                   "lat": 26.9369, "lng": 94.1698},
+    {"station_id": "ASM_AWS_025", "name": "Morigaon",                 "lat": 26.2817, "lng": 92.2838},
+    {"station_id": "ASM_AWS_026", "name": "Nagaon",                   "lat": 26.3630, "lng": 92.7536},
+    {"station_id": "ASM_AWS_027", "name": "Nalbari",                  "lat": 26.3711, "lng": 91.3823},
+    {"station_id": "ASM_AWS_028", "name": "Sivasagar",                "lat": 26.9703, "lng": 94.6648},
+    {"station_id": "ASM_AWS_029", "name": "Sonitpur",                 "lat": 26.7603, "lng": 92.6518},
+    {"station_id": "ASM_AWS_030", "name": "South Salmara-Mankachar",  "lat": 25.6967, "lng": 89.9191},
+    {"station_id": "ASM_AWS_031", "name": "Sribhumi",                 "lat": 24.5795, "lng": 92.3790},
+    {"station_id": "ASM_AWS_032", "name": "Tamulpur",                 "lat": 26.6520, "lng": 91.6231},
+    {"station_id": "ASM_AWS_033", "name": "Tinsukia",                 "lat": 27.5810, "lng": 95.6176},
+    {"station_id": "ASM_AWS_034", "name": "Udalguri",                 "lat": 26.7302, "lng": 92.0315},
+    {"station_id": "ASM_AWS_035", "name": "West Karbi Anglong",       "lat": 25.8500, "lng": 92.5330},
 ]
 # Kept as alias for older imports.
 MOCK_STATIONS = STATIONS

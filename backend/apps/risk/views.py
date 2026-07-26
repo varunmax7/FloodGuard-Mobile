@@ -102,7 +102,8 @@ def risk_hexes(request):
         .filter(ts=ts, hex__centroid__within=bbox_poly)
         .select_related("hex")
         .annotate(geojson=AsGeoJSON("hex__geom"))
-        .only("risk_level", "hazard_class", "confidence", "hex__h3_index")
+        .only("risk_level", "hazard_class", "confidence",
+              "rain_1h", "rain_24h", "hex__h3_index")
     )
 
     features = []
@@ -117,6 +118,10 @@ def risk_hexes(request):
                 "risk_level": snap.risk_level,
                 "hazard_class": snap.hazard_class,
                 "confidence": snap.confidence,
+                # Rainfall values so the mobile map can render a rain-intensity
+                # choropleth without a second API round-trip.
+                "rain_1h": round(snap.rain_1h or 0.0, 2),
+                "rain_24h": round(snap.rain_24h or 0.0, 2),
             },
         })
 
@@ -140,7 +145,7 @@ def risk_location(request):
     except (KeyError, ValueError, TypeError):
         return Response({"detail": "lat and lng are required float parameters."}, status=400)
 
-    h3_index = h3.latlng_to_cell(lat, lng, 9)
+    h3_index = h3.latlng_to_cell(lat, lng, settings.H3_RESOLUTION)
 
     try:
         cell = HexCell.objects.get(h3_index=h3_index)
@@ -276,7 +281,9 @@ def risk_overview(request):
 
 # ── GET /risk/hourly-forecast ─────────────────────────────────────────────────
 
-HYD_CENTROID = (17.3850, 78.4867)
+REGION_CENTROID = (26.1445, 91.7362)  # Guwahati — geographic centre of Assam
+# Legacy alias kept until every caller uses REGION_CENTROID.
+HYD_CENTROID = REGION_CENTROID
 OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
 

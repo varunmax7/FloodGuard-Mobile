@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/app_config.dart';
 import '../../design/theme/app_theme.dart';
 import '../../features/alerts/alerts_screen.dart';
 import '../../features/area_detail/area_detail_screen.dart';
@@ -91,10 +92,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final h3 = state.pathParameters['h3Index'] ?? '';
           final lat =
               double.tryParse(state.uri.queryParameters['lat'] ?? '') ??
-                  17.3850;
+                  AppConfig.regionLatitude;
           final lng =
               double.tryParse(state.uri.queryParameters['lng'] ?? '') ??
-                  78.4867;
+                  AppConfig.regionLongitude;
           return AreaDetailScreen(h3Index: h3, lat: lat, lng: lng);
         },
       ),

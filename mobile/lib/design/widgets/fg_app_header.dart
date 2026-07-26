@@ -105,7 +105,7 @@ class _HeaderTitle extends StatelessWidget {
               ),
             ),
             Text(
-              'Hyderabad Flood Alert',
+              'Assam Flood Alert',
               style: TextStyle(
                 color: Colors.white.withAlpha(204), // 80% opacity
                 fontSize: 11,

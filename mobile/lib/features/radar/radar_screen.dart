@@ -39,7 +39,8 @@ const _kSatelliteStyle = '''{
     {"id": "labels", "type": "raster", "source": "labels", "paint": {"raster-opacity": 0.9}}
   ]
 }''';
-const _kHydCenter = LatLng(17.3850, 78.4867);
+const _kRegionCenter = LatLng(26.1445, 91.7362); // Guwahati / Assam centre
+const _kRegionInitialZoom = 7.5;
 const _kAnimInterval = Duration(milliseconds: 800);
 
 // Static dBZ colour scale — matches RainViewer colorScheme=4 (Weather Channel).
@@ -336,8 +337,8 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
                 MapLibreMap(
                   styleString: _kSatelliteStyle,
                   initialCameraPosition: const CameraPosition(
-                    target: _kHydCenter,
-                    zoom: 9.5,
+                    target: _kRegionCenter,
+                    zoom: _kRegionInitialZoom,
                   ),
                   onMapCreated: _onMapCreated,
                   onStyleLoadedCallback: _onStyleLoaded,

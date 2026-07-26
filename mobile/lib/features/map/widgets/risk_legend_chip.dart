@@ -6,17 +6,33 @@ import 'package:flutter/material.dart';
 import '../../../design/theme/app_theme.dart';
 
 class RiskLegendChip extends StatelessWidget {
-  const RiskLegendChip({super.key});
+  /// 'risk' → coloured risk levels; 'rain' → 24h rainfall gradient.
+  final String mode;
+  const RiskLegendChip({super.key, this.mode = 'risk'});
 
-  static const _items = [
-    ('Severe', AppColors.riskSevere),
-    ('High', AppColors.riskHigh),
+  static const _riskItems = [
+    ('Severe',   AppColors.riskSevere),
+    ('High',     AppColors.riskHigh),
     ('Moderate', AppColors.riskModerate),
-    ('Low', AppColors.riskLow),
+    ('Low',      AppColors.riskLow),
+  ];
+
+  // Kept in sync with _kRainFillColor in map_screen.dart.
+  static const _rainItems = [
+    ('60+ mm', Color(0xFF1E3A8A)),
+    ('30 mm',  Color(0xFF1D4ED8)),
+    ('15 mm',  Color(0xFF3B82F6)),
+    ('5 mm',   Color(0xFF93C5FD)),
+    ('1 mm',   Color(0xFFDBEAFE)),
+    ('Dry',    Color(0xFFF1F5F9)),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final isRain = mode == 'rain';
+    final items = isRain ? _rainItems : _riskItems;
+    final title = isRain ? 'Rain (24h)' : 'Risk Level';
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: BackdropFilter(
@@ -31,13 +47,13 @@ class RiskLegendChip extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Risk Level',
-                  style: TextStyle(
+              Text(title,
+                  style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textMuted)),
               const SizedBox(height: 6),
-              for (final item in _items) ...[
+              for (final item in items) ...[
                 _LegendRow(label: item.$1, color: item.$2),
                 const SizedBox(height: 4),
               ],

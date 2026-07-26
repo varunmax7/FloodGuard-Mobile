@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../design/theme/app_theme.dart';
 
 class LayerToggle extends StatelessWidget {
-  final String active; // 'risk' | 'radar'
+  final String active; // 'risk' | 'rain' | 'radar'
   final ValueChanged<String> onToggle;
 
   const LayerToggle({super.key, required this.active, required this.onToggle});
@@ -25,9 +25,11 @@ class LayerToggle extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _Chip(label: 'Risk', icon: Icons.layers, isActive: active == 'risk',
+            _Chip(label: 'Risk',  icon: Icons.layers,     isActive: active == 'risk',
                 onTap: () => onToggle('risk')),
-            _Chip(label: 'Radar', icon: Icons.radar, isActive: active == 'radar',
+            _Chip(label: 'Rain',  icon: Icons.water_drop, isActive: active == 'rain',
+                onTap: () => onToggle('rain')),
+            _Chip(label: 'Radar', icon: Icons.radar,      isActive: active == 'radar',
                 onTap: () => onToggle('radar')),
           ],
         ),

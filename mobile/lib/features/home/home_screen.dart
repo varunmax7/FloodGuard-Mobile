@@ -142,7 +142,7 @@ class _HomeContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${overview.totalHexes} hex cells · GHMC coverage',
+                  '${overview.totalHexes} hex cells · Assam coverage',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textMuted,
@@ -227,7 +227,7 @@ class _PersonalRiskCard extends ConsumerWidget {
           return const _PersonalRiskInfo(
             icon: Icons.explore_off_outlined,
             title: 'Outside coverage',
-            message: 'FloodGuard currently covers only the GHMC area (Hyderabad).',
+            message: 'FloodGuard currently covers the state of Assam.',
           );
         }
         if (err is StaleForecastException) {

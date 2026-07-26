@@ -1,5 +1,52 @@
-"""geo/models.py — HexCell, AwsStation, AwsObservation stubs (Phase 1 fills these)."""
+"""geo/models.py — HexCell, AwsStation, AwsObservation + District/Taluka (Assam scope)."""
 from django.contrib.gis.db import models
+
+
+class District(models.Model):
+    """
+    Administrative district. Populated from the Survey of India district
+    boundary layer via the `load_assam_boundaries` management command.
+    """
+    name = models.CharField(max_length=64, unique=True)   # canonical name
+    state = models.CharField(max_length=32, default="Assam")
+    geom = models.MultiPolygonField(srid=4326)
+    centroid = models.PointField(srid=4326)
+
+    class Meta:
+        db_table = "geo_district"
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["name"]),
+        ]
+
+    def __str__(self):
+        return f"District({self.name})"
+
+
+class Taluka(models.Model):
+    """
+    Sub-district / revenue circle within a District. Names are not globally
+    unique (e.g. two districts each have a "Sonari Circle"), so uniqueness is
+    scoped to (district, name).
+    """
+    name = models.CharField(max_length=64)
+    district = models.ForeignKey(District, on_delete=models.CASCADE, related_name="talukas")
+    geom = models.MultiPolygonField(srid=4326)
+    centroid = models.PointField(srid=4326)
+
+    class Meta:
+        db_table = "geo_taluka"
+        ordering = ["district__name", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["district", "name"],
+                                    name="geo_taluka_district_name_uniq"),
+        ]
+        indexes = [
+            models.Index(fields=["district", "name"]),
+        ]
+
+    def __str__(self):
+        return f"Taluka({self.name}, {self.district.name})"
 
 
 class HexCell(models.Model):

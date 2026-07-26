@@ -1,0 +1,819 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  FloodGuard — Production Infrastructure on AWS
+  ECS Fargate (web/worker/beat) + RDS PostGIS + ElastiCache Redis + S3
+  Region: ap-south-1 (Mumbai)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PARAMETERS
+# ─────────────────────────────────────────────────────────────────────────────
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [staging, production]
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 16
+    Description: RDS master password (16+ chars)
+
+  DjangoSecretKey:
+    Type: String
+    NoEcho: true
+    MinLength: 50
+    Description: "Django SECRET_KEY — run: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+
+  FirebaseCredentialsJson:
+    Type: String
+    NoEcho: true
+    Default: "not-configured"
+    Description: Base64-encoded Firebase service account JSON
+
+  CorsAllowedOrigins:
+    Type: String
+    Default: "not-configured"
+    Description: Comma-separated origins for admin dashboard (e.g. https://admin.yourapp.com)
+
+  EcrImageTag:
+    Type: String
+    Default: latest
+    Description: Docker image tag to deploy (updated on each release)
+
+  DBInstanceClass:
+    Type: String
+    Default: db.t4g.small
+    AllowedValues: [db.t4g.micro, db.t4g.small, db.t4g.medium]
+    Description: t4g.small recommended — PostGIS needs ≥ 2 GB RAM
+
+  CacheNodeType:
+    Type: String
+    Default: cache.t4g.micro
+    AllowedValues: [cache.t4g.micro, cache.t4g.small]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VPC & NETWORKING
+# ─────────────────────────────────────────────────────────────────────────────
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-vpc"
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Sub "${AWS::Region}a"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-public-1a"
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Sub "${AWS::Region}b"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-public-1b"
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.10.0/24
+      AvailabilityZone: !Sub "${AWS::Region}a"
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-private-1a"
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.20.0/24
+      AvailabilityZone: !Sub "${AWS::Region}b"
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-private-1b"
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-igw"
+
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  NatEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachInternetGateway
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-nat"
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-public-rt"
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachInternetGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-private-rt"
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnet1RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2RTAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECURITY GROUPS
+# ─────────────────────────────────────────────────────────────────────────────
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB - inbound HTTP/HTTPS
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-alb-sg"
+
+  ECSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ECS tasks - inbound from ALB only
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-ecs-sg"
+
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDS PostGIS - inbound from ECS only
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref ECSSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-rds-sg"
+
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ElastiCache Redis - inbound from ECS only
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref ECSSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-redis-sg"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RDS POSTGIS
+# ─────────────────────────────────────────────────────────────────────────────
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: FloodGuard RDS private subnets
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
+  DBParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: FloodGuard PostgreSQL 16
+      Family: postgres16
+      Parameters:
+        max_connections: "100"
+        work_mem: "4096"
+        maintenance_work_mem: "65536"
+
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub "floodguard-${Environment}"
+      DBName: floodguard
+      Engine: postgres
+      EngineVersion: "16.4"
+      DBInstanceClass: !Ref DBInstanceClass
+      MasterUsername: floodguard
+      MasterUserPassword: !Ref DBPassword
+      AllocatedStorage: "20"
+      StorageType: gp3
+      StorageEncrypted: true
+      MultiAZ: false
+      PubliclyAccessible: false
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBParameterGroupName: !Ref DBParameterGroup
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      BackupRetentionPeriod: 7
+      PreferredBackupWindow: "00:00-01:00"
+      PreferredMaintenanceWindow: "sun:02:00-sun:03:00"
+      EnablePerformanceInsights: true
+      PerformanceInsightsRetentionPeriod: 7
+      DeletionProtection: false
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-db"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ELASTICACHE REDIS
+# ─────────────────────────────────────────────────────────────────────────────
+  RedisSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: FloodGuard Redis private subnets
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
+  RedisCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      ClusterName: !Sub "floodguard-${Environment}"
+      Engine: redis
+      EngineVersion: "7.1"
+      CacheNodeType: !Ref CacheNodeType
+      NumCacheNodes: 1
+      CacheSubnetGroupName: !Ref RedisSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref RedisSecurityGroup
+      AutoMinorVersionUpgrade: true
+      Tags:
+        - Key: Name
+          Value: !Sub "floodguard-${Environment}-redis"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# S3 MEDIA BUCKET
+# ─────────────────────────────────────────────────────────────────────────────
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "floodguard-media-${AWS::AccountId}-${Environment}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortIncompleteUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: [GET, PUT, POST]
+            AllowedOrigins: ["*"]
+            MaxAge: 3600
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECRETS MANAGER
+# ─────────────────────────────────────────────────────────────────────────────
+  DjangoSecretKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "/floodguard/${Environment}/SECRET_KEY"
+      Description: Django SECRET_KEY
+      SecretString: !Ref DjangoSecretKey
+
+  DatabaseUrlSecret:
+    Type: AWS::SecretsManager::Secret
+    DependsOn: DBInstance
+    Properties:
+      Name: !Sub "/floodguard/${Environment}/DATABASE_URL"
+      Description: PostGIS connection string
+      SecretString: !Sub "postgis://floodguard:${DBPassword}@${DBInstance.Endpoint.Address}:5432/floodguard"
+
+  FirebaseSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "/floodguard/${Environment}/FIREBASE_CREDENTIALS_JSON"
+      Description: Base64-encoded Firebase service account JSON
+      SecretString: !Ref FirebaseCredentialsJson
+
+  CorsOriginsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "/floodguard/${Environment}/CORS_ALLOWED_ORIGINS"
+      Description: CORS origins for admin dashboard
+      SecretString: !Ref CorsAllowedOrigins
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IAM ROLES
+# ─────────────────────────────────────────────────────────────────────────────
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "floodguard-${Environment}-ecs-execution"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ReadSecrets
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/floodguard/${Environment}/*"
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "floodguard-${Environment}-ecs-task"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3MediaAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                  - s3:GetObjectAcl
+                  - s3:PutObjectAcl
+                Resource:
+                  - !GetAtt MediaBucket.Arn
+                  - !Sub "${MediaBucket.Arn}/*"
+        - PolicyName: ECSExec
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssmmessages:CreateControlChannel
+                  - ssmmessages:CreateDataChannel
+                  - ssmmessages:OpenControlChannel
+                  - ssmmessages:OpenDataChannel
+                Resource: "*"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLOUDWATCH LOG GROUPS
+# ─────────────────────────────────────────────────────────────────────────────
+  WebLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/floodguard/${Environment}/web"
+      RetentionInDays: 30
+
+  WorkerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/floodguard/${Environment}/worker"
+      RetentionInDays: 30
+
+  BeatLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/floodguard/${Environment}/beat"
+      RetentionInDays: 30
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ECS CLUSTER
+# ─────────────────────────────────────────────────────────────────────────────
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "floodguard-${Environment}"
+      CapacityProviders: [FARGATE, FARGATE_SPOT]
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+
+# ─────────────────────────────────────────────────────────────────────────────
+# APPLICATION LOAD BALANCER
+# ─────────────────────────────────────────────────────────────────────────────
+  ALBLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "floodguard-${Environment}"
+      Type: application
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "floodguard-${Environment}-web"
+      Port: 8000
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      TargetType: ip
+      HealthCheckPath: /api/v1/readyz/
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "30"
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ALBLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ECS TASK DEFINITIONS
+# ─────────────────────────────────────────────────────────────────────────────
+  WebTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "floodguard-web-${Environment}"
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      Cpu: "512"
+      Memory: "1024"
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskRole.Arn
+      ContainerDefinitions:
+        - Name: web
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/floodguard:${EcrImageTag}"
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8000
+              Protocol: tcp
+          Command:
+            - sh
+            - "-c"
+            - "python manage.py wait_for_db && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn floodguard.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 60 --access-logfile -"
+          Environment:
+            - Name: DEBUG
+              Value: "False"
+            - Name: ALLOWED_HOSTS
+              Value: !Sub "${ALBLoadBalancer.DNSName},localhost"
+            - Name: REDIS_URL
+              Value: !Sub "redis://${RedisCluster.RedisEndpoint.Address}:6379/0"
+            - Name: CACHE_URL
+              Value: !Sub "redis://${RedisCluster.RedisEndpoint.Address}:6379/1"
+            - Name: AWS_STORAGE_BUCKET_NAME
+              Value: !Ref MediaBucket
+            - Name: AWS_S3_REGION_NAME
+              Value: !Ref AWS::Region
+            - Name: USE_S3_STORAGE
+              Value: "True"
+            - Name: H3_RESOLUTION
+              Value: "7"
+            - Name: FORECAST_LIVE
+              Value: "True"
+            - Name: RADAR_LIVE
+              Value: "True"
+            - Name: AWS_LIVE
+              Value: "True"
+            - Name: INGEST_MOCK
+              Value: "False"
+            - Name: RISK_FRESHNESS_HOURS
+              Value: "2"
+          Secrets:
+            - Name: SECRET_KEY
+              ValueFrom: !Ref DjangoSecretKeySecret
+            - Name: DATABASE_URL
+              ValueFrom: !Ref DatabaseUrlSecret
+            - Name: FIREBASE_CREDENTIALS_JSON
+              ValueFrom: !Ref FirebaseSecret
+            - Name: CORS_ALLOWED_ORIGINS
+              ValueFrom: !Ref CorsOriginsSecret
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref WebLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: web
+          HealthCheck:
+            Command: ["CMD-SHELL", "curl -sf http://localhost:8000/api/v1/readyz/ || exit 1"]
+            Interval: 30
+            Timeout: 10
+            Retries: 3
+            StartPeriod: 60
+
+  WorkerTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "floodguard-worker-${Environment}"
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      Cpu: "512"
+      Memory: "1024"
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskRole.Arn
+      ContainerDefinitions:
+        - Name: worker
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/floodguard:${EcrImageTag}"
+          Essential: true
+          Command:
+            - celery
+            - "-A"
+            - floodguard
+            - worker
+            - "-l"
+            - INFO
+            - "--concurrency=4"
+            - "--max-tasks-per-child=100"
+          Environment:
+            - Name: DEBUG
+              Value: "False"
+            - Name: REDIS_URL
+              Value: !Sub "redis://${RedisCluster.RedisEndpoint.Address}:6379/0"
+            - Name: CACHE_URL
+              Value: !Sub "redis://${RedisCluster.RedisEndpoint.Address}:6379/1"
+            - Name: AWS_STORAGE_BUCKET_NAME
+              Value: !Ref MediaBucket
+            - Name: AWS_S3_REGION_NAME
+              Value: !Ref AWS::Region
+            - Name: USE_S3_STORAGE
+              Value: "True"
+            - Name: H3_RESOLUTION
+              Value: "7"
+            - Name: FORECAST_LIVE
+              Value: "True"
+            - Name: RADAR_LIVE
+              Value: "True"
+            - Name: AWS_LIVE
+              Value: "True"
+            - Name: INGEST_MOCK
+              Value: "False"
+          Secrets:
+            - Name: SECRET_KEY
+              ValueFrom: !Ref DjangoSecretKeySecret
+            - Name: DATABASE_URL
+              ValueFrom: !Ref DatabaseUrlSecret
+            - Name: FIREBASE_CREDENTIALS_JSON
+              ValueFrom: !Ref FirebaseSecret
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref WorkerLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: worker
+
+  BeatTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "floodguard-beat-${Environment}"
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      Cpu: "256"
+      Memory: "512"
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskRole.Arn
+      ContainerDefinitions:
+        - Name: beat
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/floodguard:${EcrImageTag}"
+          Essential: true
+          Command:
+            - celery
+            - "-A"
+            - floodguard
+            - beat
+            - "-l"
+            - INFO
+            - "--scheduler"
+            - "django_celery_beat.schedulers:DatabaseScheduler"
+          Environment:
+            - Name: DEBUG
+              Value: "False"
+            - Name: REDIS_URL
+              Value: !Sub "redis://${RedisCluster.RedisEndpoint.Address}:6379/0"
+            - Name: H3_RESOLUTION
+              Value: "7"
+          Secrets:
+            - Name: SECRET_KEY
+              ValueFrom: !Ref DjangoSecretKeySecret
+            - Name: DATABASE_URL
+              ValueFrom: !Ref DatabaseUrlSecret
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref BeatLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: beat
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ECS SERVICES
+# ─────────────────────────────────────────────────────────────────────────────
+  WebService:
+    Type: AWS::ECS::Service
+    DependsOn: ALBListener
+    Properties:
+      ServiceName: !Sub "floodguard-web-${Environment}"
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref WebTaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      EnableExecuteCommand: true
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets:
+            - !Ref PrivateSubnet1
+            - !Ref PrivateSubnet2
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+          AssignPublicIp: DISABLED
+      LoadBalancers:
+        - ContainerName: web
+          ContainerPort: 8000
+          TargetGroupArn: !Ref ALBTargetGroup
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 50
+        MaximumPercent: 200
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+
+  WorkerService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub "floodguard-worker-${Environment}"
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref WorkerTaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      EnableExecuteCommand: true
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets:
+            - !Ref PrivateSubnet1
+            - !Ref PrivateSubnet2
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+          AssignPublicIp: DISABLED
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 50
+        MaximumPercent: 200
+
+  BeatService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub "floodguard-beat-${Environment}"
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref BeatTaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      EnableExecuteCommand: true
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets:
+            - !Ref PrivateSubnet1
+            - !Ref PrivateSubnet2
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+          AssignPublicIp: DISABLED
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OUTPUTS
+# ─────────────────────────────────────────────────────────────────────────────
+Outputs:
+  ALBDnsName:
+    Description: API base URL — set as API_BASE_URL in Flutter and admin builds
+    Value: !Sub "http://${ALBLoadBalancer.DNSName}"
+    Export:
+      Name: !Sub "FloodGuard-${Environment}-ALBDnsName"
+
+  ECRRepositoryUri:
+    Description: ECR URI for docker push (used by deploy.sh and CI)
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/floodguard"
+    Export:
+      Name: !Sub "FloodGuard-${Environment}-ECRUri"
+
+  DBEndpoint:
+    Description: RDS PostGIS hostname
+    Value: !GetAtt DBInstance.Endpoint.Address
+    Export:
+      Name: !Sub "FloodGuard-${Environment}-DBEndpoint"
+
+  RedisEndpoint:
+    Description: ElastiCache Redis hostname
+    Value: !GetAtt RedisCluster.RedisEndpoint.Address
+    Export:
+      Name: !Sub "FloodGuard-${Environment}-RedisEndpoint"
+
+  MediaBucketName:
+    Description: S3 bucket for user media uploads
+    Value: !Ref MediaBucket
+    Export:
+      Name: !Sub "FloodGuard-${Environment}-MediaBucket"
+
+  ECSClusterName:
+    Description: ECS cluster name (used by deploy.sh)
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub "FloodGuard-${Environment}-ECSCluster"

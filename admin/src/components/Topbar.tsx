@@ -11,7 +11,7 @@ export default function Topbar({ title }: Props) {
       <div className="flex items-center gap-3">
         <h2 className="text-[15px] font-semibold text-slate-900">{title}</h2>
         <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
-          Hyderabad
+          Assam
         </span>
       </div>
       <div className="flex items-center gap-2">

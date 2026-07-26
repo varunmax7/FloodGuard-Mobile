@@ -60,11 +60,12 @@ class SavedPlaceSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data: dict) -> SavedPlace:
+        from django.conf import settings as _settings
         lat = validated_data.pop("lat")
         lng = validated_data.pop("lng")
 
         geom = Point(lng, lat, srid=4326)
-        h3_index = h3.latlng_to_cell(lat, lng, 9)
+        h3_index = h3.latlng_to_cell(lat, lng, _settings.H3_RESOLUTION)
         hex_cell = HexCell.objects.filter(h3_index=h3_index).first()
 
         return SavedPlace.objects.create(

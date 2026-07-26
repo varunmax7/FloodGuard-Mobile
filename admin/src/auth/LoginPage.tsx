@@ -36,7 +36,7 @@ export default function LoginPage() {
           </div>
           <div className="text-center">
             <h1 className="text-xl font-bold text-slate-900">FloodGuard Admin</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Hyderabad Operations Console</p>
+            <p className="text-sm text-slate-500 mt-0.5">Assam Operations Console</p>
           </div>
         </div>
 

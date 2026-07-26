@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Layout from '../components/Layout'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '../api/client'
-import { CheckCircle, XCircle, AlertOctagon, MapPin, Clock, Droplets, Car, Copy, X, Image as ImageIcon, AlertTriangle } from 'lucide-react'
+import { CheckCircle, XCircle, AlertOctagon, MapPin, Clock, Droplets, Car, Copy, X, Image as ImageIcon, AlertTriangle, Users } from 'lucide-react'
 
 type Action = 'VERIFY' | 'REJECT' | 'SPAM'
 
@@ -18,6 +18,7 @@ interface Report {
   lon: number
   hex: string | null
   ward: string | null
+  party_size?: number
   duplicate_hint: boolean
   duplicate_count: number
 }
@@ -141,6 +142,15 @@ export default function ModerationPage() {
                           <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-700">
                             <AlertTriangle size={11} className="inline mr-0.5" />
                             {r.duplicate_count} similar
+                          </span>
+                        )}
+                        {r.party_size !== undefined && r.party_size !== null && (
+                          <span
+                            className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-700"
+                            title="People with the reporter"
+                          >
+                            <Users size={11} className="inline mr-0.5" />
+                            {r.party_size === 1 ? 'Alone' : `${r.party_size}${r.party_size >= 6 ? '+' : ''} people`}
                           </span>
                         )}
                       </div>

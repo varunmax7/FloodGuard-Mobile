@@ -87,7 +87,7 @@ export default function ExportPage() {
         <div className="bg-slate-50 rounded-xl border border-slate-100 px-4 py-3 text-[12px] text-slate-500">
           <p className="font-semibold text-slate-600 mb-1">Use cases</p>
           <ul className="list-disc list-inside space-y-0.5">
-            <li>GHMC/NDMA operational reporting</li>
+            <li>ASDMA/NDMA operational reporting</li>
             <li>Insurance loss-validation datasets</li>
             <li>ML training data extraction</li>
             <li>GIS analysis in QGIS / ArcGIS</li>

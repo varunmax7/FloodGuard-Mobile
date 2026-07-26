@@ -25,8 +25,10 @@ FORECAST_SOURCE = "OPEN_METEO"
 # Open-Meteo's underlying ECMWF/GFS grid is ~10 km; sampling per hex (100 m) is
 # massive oversampling and overwhelms the API rate limit. Instead sample a
 # coarse grid across the bbox in ONE call, then nearest-assign to hexes.
-SAMPLE_GRID_NX = 8   # ~6 km resolution across a 49 km bbox
-SAMPLE_GRID_NY = 5   # ~6 km resolution across a 32 km bbox
+# Sized for a state-scale bbox (~450 km × 700 km for Assam): 20×15 = 300 points
+# → ~30 km spacing, comfortably inside Open-Meteo's ~1000-location batch limit.
+SAMPLE_GRID_NX = 20
+SAMPLE_GRID_NY = 15
 
 
 def _mock_forecast(run_ts: datetime, hex_cells: list) -> list[dict]:

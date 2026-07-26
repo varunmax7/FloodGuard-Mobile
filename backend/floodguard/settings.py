@@ -13,7 +13,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ── Core ──────────────────────────────────────────────────────────────────────
 SECRET_KEY = config("SECRET_KEY", default="dev-insecure-key-do-not-use-in-prod")
 DEBUG = config("DEBUG", default=True, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    # Leading-dot forms are Django wildcards — accept any *.ngrok-free.app /
+    # *.ngrok.io subdomain so tunnels rotate freely without a restart.
+    default="localhost,127.0.0.1,.ngrok-free.app,.ngrok-free.dev,.ngrok.io,.ngrok.app,.ngrok.dev",
+).split(",")
+
+# Trust ngrok origins for CSRF (admin login and any browser POST going
+# through the tunnel).
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.ngrok-free.app",
+    "https://*.ngrok-free.dev",
+    "https://*.ngrok.io",
+    "https://*.ngrok.app",
+    "https://*.ngrok.dev",
+]
 
 # ── Apps ──────────────────────────────────────────────────────────────────────
 DJANGO_APPS = [
@@ -52,6 +67,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # ── Middleware ────────────────────────────────────────────────────────────────
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -114,6 +130,14 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -190,8 +214,9 @@ AWS_DEFAULT_ACL = "private"
 AWS_QUERYSTRING_AUTH = True
 AWS_QUERYSTRING_EXPIRE = 3600          # signed URL valid for 1 hour
 
-if AWS_ACCESS_KEY_ID and AWS_S3_ENDPOINT_URL:
-    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+USE_S3_STORAGE = config("USE_S3_STORAGE", default=False, cast=bool)
+if USE_S3_STORAGE or (AWS_ACCESS_KEY_ID and AWS_S3_ENDPOINT_URL):
+    STORAGES["default"] = {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"}
 
 # ── Cache — Redis in prod, LocMem in dev ──────────────────────────────────────
 CACHE_URL = config("CACHE_URL", default="")
@@ -214,6 +239,13 @@ else:
             "LOCATION": "floodguard-default",
         }
     }
+
+# ── Geo ───────────────────────────────────────────────────────────────────────
+# H3 resolution used by build_hexgrid and every lat/lng → cell lookup.
+# Must match the res the hexgrid was built at, or point → hex resolution fails.
+#   res 9 (~174 m edge)  — city-scale (GHMC / Hyderabad legacy)
+#   res 7 (~1.2 km edge) — state-scale (Assam)
+H3_RESOLUTION = config("H3_RESOLUTION", default=7, cast=int)
 
 # ── Ingest pipeline ───────────────────────────────────────────────────────────
 # INGEST_MOCK=True → tasks use synthetic fixture data (no network calls).

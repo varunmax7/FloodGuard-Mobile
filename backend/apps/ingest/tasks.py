@@ -132,7 +132,7 @@ def ingest_aws(self):
         created_obs = 0
         for r in records:
             # Upsert station
-            h3_index = h3.latlng_to_cell(r["lat"], r["lng"], 9)
+            h3_index = h3.latlng_to_cell(r["lat"], r["lng"], settings.H3_RESOLUTION)
             hex_cell = HexCell.objects.filter(h3_index=h3_index).first()
 
             station, _ = AwsStation.objects.get_or_create(

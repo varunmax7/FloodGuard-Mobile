@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#0B2545" />
+  <title>FloodGuard — Report Flood</title>
+  <style>
+    :root {
+      --blue-900: #0B2545;
+      --blue-600: #2563EB;
+      --slate-50: #F1F5F9;
+      --slate-100: #E2E8F0;
+      --slate-300: #CBD5E1;
+      --slate-500: #64748B;
+      --slate-900: #0F172A;
+      --green-500: #22C55E;
+      --amber-500: #F97316;
+      --red-500: #EF4444;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--slate-50);
+      color: var(--slate-900);
+      font-size: 15px;
+      line-height: 1.4;
+    }
+    header {
+      background: linear-gradient(135deg, var(--blue-900), var(--blue-600));
+      color: white;
+      padding: 16px 20px 20px;
+      position: sticky; top: 0; z-index: 5;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+    header p  { margin: 4px 0 0; font-size: 13px; opacity: 0.85; }
+
+    main { padding: 16px; max-width: 560px; margin: 0 auto; }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+      margin-bottom: 14px;
+    }
+    .label {
+      font-size: 13px; font-weight: 600;
+      color: var(--slate-900);
+      margin: 0 0 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .label .hint {
+      font-weight: 400; font-size: 11px; color: var(--slate-500);
+    }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 14px;
+      border: 1px solid var(--slate-300);
+      border-radius: 8px;
+      background: var(--slate-50);
+      font-size: 13px; font-weight: 500;
+      color: var(--slate-900);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+    .chip:active { transform: scale(0.97); }
+    .chip.selected {
+      background: var(--blue-600);
+      border-color: var(--blue-600);
+      color: white;
+    }
+    .chip.road-1.selected  { background: var(--green-500); border-color: var(--green-500); }
+    .chip.road-2.selected  { background: var(--amber-500); border-color: var(--amber-500); }
+    .chip.road-3.selected  { background: var(--red-500);   border-color: var(--red-500); }
+
+    .photo-slot {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border: 1.5px dashed var(--slate-300);
+      border-radius: 12px;
+      background: var(--slate-50);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+    }
+    .photo-slot img {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    .photo-slot .placeholder {
+      text-align: center; color: var(--slate-500); font-size: 13px;
+      padding: 20px;
+    }
+    .photo-slot .placeholder svg {
+      display: block; margin: 0 auto 8px; opacity: 0.5;
+    }
+    .photo-slot input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+
+    .loc {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13px;
+    }
+    .loc .coords { font-family: 'SF Mono', ui-monospace, monospace; color: var(--slate-900); }
+    .loc .status { color: var(--slate-500); }
+
+    button.primary {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--blue-900), var(--blue-600));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px; font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button.primary:disabled { opacity: 0.55; cursor: not-allowed; }
+    button.primary:active:not(:disabled) { transform: scale(0.99); }
+
+    .toast {
+      position: fixed;
+      bottom: 20px; left: 16px; right: 16px;
+      max-width: 528px; margin: 0 auto;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: white;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      font-size: 14px;
+      display: none;
+      z-index: 20;
+    }
+    .toast.ok  { border-left: 4px solid var(--green-500); }
+    .toast.err { border-left: 4px solid var(--red-500); }
+    .toast.show { display: block; animation: slide 0.25s ease-out; }
+    @keyframes slide {
+      from { transform: translateY(20px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: -3px; margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    footer {
+      text-align: center;
+      padding: 20px 16px 32px;
+      font-size: 11px; color: var(--slate-500);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Report a Flood</h1>
+    <p>Assam Flood Alert · Your report helps neighbours stay safe.</p>
+  </header>
+
+  <main>
+    <!-- Photo -->
+    <div class="card">
+      <div class="label">Photo <span class="hint">Optional — camera or gallery</span></div>
+      <label class="photo-slot" id="photo-slot">
+        <div class="placeholder" id="photo-placeholder">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          Tap to add a photo
+        </div>
+        <img id="photo-preview" style="display:none" alt="preview" />
+        <input type="file" id="photo" accept="image/*" capture="environment" />
+      </label>
+    </div>
+
+    <!-- Depth -->
+    <div class="card">
+      <div class="label">Flood depth</div>
+      <div class="chips" id="depth-chips">
+        <div class="chip selected" data-value="ANKLE">Ankle deep</div>
+        <div class="chip"          data-value="KNEE">Knee deep</div>
+        <div class="chip"          data-value="WAIST">Waist deep</div>
+        <div class="chip"          data-value="VEHICLE">Vehicle level</div>
+      </div>
+    </div>
+
+    <!-- Road status -->
+    <div class="card">
+      <div class="label">Road status</div>
+      <div class="chips" id="road-chips">
+        <div class="chip road-1 selected" data-value="PASSABLE">Passable</div>
+        <div class="chip road-2"          data-value="DIFFICULT">Difficult</div>
+        <div class="chip road-3"          data-value="BLOCKED">Blocked</div>
+      </div>
+    </div>
+
+    <!-- Party size -->
+    <div class="card">
+      <div class="label">People with you</div>
+      <div class="chips" id="party-chips">
+        <div class="chip selected" data-value="1">Alone</div>
+        <div class="chip"          data-value="2">2</div>
+        <div class="chip"          data-value="3">3</div>
+        <div class="chip"          data-value="4">4</div>
+        <div class="chip"          data-value="5">5</div>
+        <div class="chip"          data-value="6">6+</div>
+      </div>
+    </div>
+
+    <!-- Location -->
+    <div class="card">
+      <div class="label">Location <span class="hint">GPS from your device</span></div>
+      <div class="loc">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue-600)" stroke-width="2">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          <circle cx="12" cy="9" r="2.5"/>
+        </svg>
+        <span id="loc-text" class="status">Requesting…</span>
+      </div>
+    </div>
+
+    <button class="primary" id="submit" disabled>Submit Report</button>
+
+    <footer>FloodGuard · Assam · Data refreshes every 15 min</footer>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────
+    const state = {
+      depth: 'ANKLE',
+      road:  'PASSABLE',
+      partySize: 1,
+      lat: null, lng: null,
+      photo: null,
+    };
+
+    // ── Chip pickers ───────────────────────────────────────────────────────
+    function wireChips(rootId, onPick) {
+      const root = document.getElementById(rootId);
+      root.addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip');
+        if (!chip) return;
+        root.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+        chip.classList.add('selected');
+        onPick(chip.dataset.value);
+      });
+    }
+    wireChips('depth-chips',  v => state.depth = v);
+    wireChips('road-chips',   v => state.road  = v);
+    wireChips('party-chips',  v => state.partySize = parseInt(v, 10));
+
+    // ── Photo picker ───────────────────────────────────────────────────────
+    const photoInput  = document.getElementById('photo');
+    const photoPrev   = document.getElementById('photo-preview');
+    const placeholder = document.getElementById('photo-placeholder');
+    photoInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      state.photo = file;
+      const reader = new FileReader();
+      reader.onload = () => {
+        photoPrev.src = reader.result;
+        photoPrev.style.display = 'block';
+        placeholder.style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // ── Geolocation ────────────────────────────────────────────────────────
+    const locText  = document.getElementById('loc-text');
+    const submitBtn = document.getElementById('submit');
+    function updateSubmitEnabled() {
+      submitBtn.disabled = (state.lat === null || state.lng === null);
+    }
+    if (!navigator.geolocation) {
+      locText.textContent = 'GPS not supported by this browser';
+    } else {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          state.lat = pos.coords.latitude;
+          state.lng = pos.coords.longitude;
+          locText.className = 'coords';
+          locText.textContent = state.lat.toFixed(5) + ', ' + state.lng.toFixed(5);
+          updateSubmitEnabled();
+        },
+        (err) => {
+          locText.textContent = 'Location unavailable (' + err.message + ')';
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+      );
+    }
+
+    // ── Submit ─────────────────────────────────────────────────────────────
+    function uuid() {
+      // RFC 4122 v4
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+    }
+
+    function toast(msg, ok) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast show ' + (ok ? 'ok' : 'err');
+      setTimeout(() => { t.classList.remove('show'); }, 4500);
+    }
+
+    submitBtn.addEventListener('click', async () => {
+      if (state.lat === null) return;
+      submitBtn.disabled = true;
+      const original = submitBtn.innerHTML;
+      submitBtn.innerHTML = '<span class="spinner"></span>Submitting…';
+
+      try {
+        const fd = new FormData();
+        fd.append('lat', state.lat);
+        fd.append('lng', state.lng);
+        fd.append('depth', state.depth);
+        fd.append('road', state.road);
+        fd.append('party_size', state.partySize);
+        fd.append('client_uuid', uuid());
+        fd.append('observed_at', new Date().toISOString());
+        if (state.photo) fd.append('photo', state.photo);
+
+        const resp = await fetch('/api/v1/reports/', { method: 'POST', body: fd });
+        const data = await resp.json().catch(() => ({}));
+
+        if (resp.status === 201 || resp.status === 200) {
+          toast('Report submitted — thank you!', true);
+          // reset photo but keep location/pickers for a possible follow-up
+          state.photo = null;
+          photoInput.value = '';
+          photoPrev.style.display = 'none';
+          placeholder.style.display = 'block';
+        } else {
+          toast(data.detail || ('Submit failed (HTTP ' + resp.status + ')'), false);
+        }
+      } catch (e) {
+        toast('Network error: ' + e.message, false);
+      } finally {
+        submitBtn.innerHTML = original;
+        updateSubmitEnabled();
+      }
+    });
+  </script>
+</body>
+</html>

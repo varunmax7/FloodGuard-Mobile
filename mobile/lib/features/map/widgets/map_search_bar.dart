@@ -41,10 +41,12 @@ class _MapSearchBarState extends State<MapSearchBar> {
       final res = await _dio.get<List<dynamic>>(
         'https://nominatim.openstreetmap.org/search',
         queryParameters: {
-          'q': '$query Hyderabad',
+          'q': '$query Assam',
           'format': 'json',
           'limit': 5,
-          'viewbox': '78.2,17.7,78.7,17.2', // HYD bbox
+          // Nominatim viewbox order: left,top,right,bottom (lng,lat,lng,lat).
+          // Assam roughly spans 89.5°E–96.1°E, 24.1°N–28.2°N.
+          'viewbox': '89.5,28.2,96.1,24.1',
           'bounded': 1,
           'countrycodes': 'in',
         },
@@ -119,7 +121,7 @@ class _MapSearchBarState extends State<MapSearchBar> {
                   style: const TextStyle(fontSize: 14),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
-                    hintText: 'Search area in Hyderabad...',
+                    hintText: 'Search area in Assam...',
                     hintStyle:
                         TextStyle(fontSize: 14, color: AppColors.textMuted),
                     isDense: true,

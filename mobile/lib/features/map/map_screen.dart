@@ -20,8 +20,9 @@ import 'widgets/risk_legend_chip.dart';
 // Free basemap — OpenFreeMap Liberty (no API key required)
 const _kStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
 
-// Hyderabad centre
-const _kHydCenter = LatLng(17.3850, 78.4867);
+// Assam centre (Guwahati) — fits the whole state at zoom ~7.5.
+const _kRegionCenter = LatLng(26.1445, 91.7362);
+const _kRegionInitialZoom = 7.5;
 
 // Risk level → hex colour (§2 tokens)
 const _kRiskFillColor = [
@@ -32,6 +33,19 @@ const _kRiskFillColor = [
   'HIGH', '#F97316',
   'SEVERE', '#EF4444',
   '#94A3B8',
+];
+
+// 24-hour cumulative rainfall (mm) → blue-scale intensity.
+// Chosen to make even trace rain visible without misrepresenting flood risk.
+// 0 mm  → very pale (near-transparent grey), 30+ mm → deep blue.
+const _kRainFillColor = [
+  'interpolate', ['linear'], ['get', 'rain_24h'],
+  0,   '#F1F5F9',
+  1,   '#DBEAFE',
+  5,   '#93C5FD',
+  15,  '#3B82F6',
+  30,  '#1D4ED8',
+  60,  '#1E3A8A',
 ];
 
 class RiskMapScreen extends ConsumerStatefulWidget {
@@ -135,7 +149,7 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
       final api = ref.read(apiProvider);
       final geojson = await api.getRiskHexes(bbox);
 
-      if (_ctrl != null && _activeLayer == 'risk') {
+      if (_ctrl != null && (_activeLayer == 'risk' || _activeLayer == 'rain')) {
         await _ctrl!.setGeoJsonSource('risk-hexes', geojson);
       }
     } catch (e) {
@@ -152,14 +166,30 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
     setState(() => _activeLayer = layer);
 
     if (layer == 'risk') {
-      // Show risk fill, hide radar
       await _setLayerVisibility('risk-fill', true);
       await _setLayerVisibility('radar-raster', false);
+      await _setFillExpression(_kRiskFillColor);
+      _scheduleHexFetch();
+    } else if (layer == 'rain') {
+      await _setLayerVisibility('risk-fill', true);
+      await _setLayerVisibility('radar-raster', false);
+      await _setFillExpression(_kRainFillColor);
       _scheduleHexFetch();
     } else {
-      // Hide risk fill, show radar raster
       await _setLayerVisibility('risk-fill', false);
       await _showRadarLayer();
+    }
+  }
+
+  Future<void> _setFillExpression(List<dynamic> expr) async {
+    try {
+      await _ctrl!.setLayerProperties(
+        'risk-fill',
+        FillLayerProperties(fillColor: expr, fillOpacity: 0.65,
+            fillOutlineColor: '#FFFFFF'),
+      );
+    } catch (e) {
+      debugPrint('[RiskMap] setLayerProperties failed: $e');
     }
   }
 
@@ -273,8 +303,8 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
   void _viewAreaDetail() {
     final h3 = _locationData?['h3_index'] as String?;
     if (h3 == null) return;
-    final lat = _locationLat ?? 17.3850;
-    final lng = _locationLng ?? 78.4867;
+    final lat = _locationLat ?? _kRegionCenter.latitude;
+    final lng = _locationLng ?? _kRegionCenter.longitude;
     final uri = Uri(
       path: '/area/$h3',
       queryParameters: {'lat': lat.toString(), 'lng': lng.toString()},
@@ -304,8 +334,8 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
           MapLibreMap(
             styleString: _kStyleUrl,
             initialCameraPosition: const CameraPosition(
-              target: _kHydCenter,
-              zoom: 11.0,
+              target: _kRegionCenter,
+              zoom: _kRegionInitialZoom,
             ),
             onMapCreated: _onMapCreated,
             onStyleLoadedCallback: _onStyleLoaded,
@@ -357,12 +387,12 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
               ),
             ),
 
-          // ── Risk legend chip (bottom-left) ───────────────────────────────────
-          if (_activeLayer == 'risk')
+          // ── Legend chip (bottom-left) — swaps between risk & rain modes ─────
+          if (_activeLayer == 'risk' || _activeLayer == 'rain')
             Positioned(
               bottom: (_locationData != null ? 190 : 100),
               left: 16,
-              child: const RiskLegendChip(),
+              child: RiskLegendChip(mode: _activeLayer),
             ),
 
           // ── Radar mode banner ────────────────────────────────────────────────

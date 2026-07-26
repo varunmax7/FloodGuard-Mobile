@@ -11,12 +11,14 @@ interface Props {
 }
 
 const DEFAULT_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
-const HYD: [number, number] = [78.4867, 17.3850]
+// Assam centre (Guwahati). Zoom 7.5 fits the whole state in a laptop viewport.
+const REGION_CENTER: [number, number] = [91.7362, 26.1445]
+const REGION_ZOOM = 7.5
 
 export default function MapPanel({
   style = DEFAULT_STYLE,
-  center = HYD,
-  zoom = 10,
+  center = REGION_CENTER,
+  zoom = REGION_ZOOM,
   className = 'w-full h-full min-h-[400px] rounded-xl',
   onMapReady,
 }: Props) {

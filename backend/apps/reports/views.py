@@ -88,7 +88,8 @@ def submit_report(request):
     hex_cell = None
     try:
         import h3
-        h3_index = h3.latlng_to_cell(lat, lng, 9)
+        from django.conf import settings as _settings
+        h3_index = h3.latlng_to_cell(lat, lng, _settings.H3_RESOLUTION)
         from apps.geo.models import HexCell
         hex_cell = HexCell.objects.filter(pk=h3_index).first()
     except Exception:
