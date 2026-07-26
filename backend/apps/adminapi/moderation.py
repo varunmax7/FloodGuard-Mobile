@@ -43,6 +43,7 @@ def queue(request):
             "lon":             r.geom.x,
             "hex":             r.hex_id,
             "ward":            r.hex.ward_name if r.hex else None,
+            "party_size":      r.party_size,
             "duplicate_hint":  dupe_n > 0,
             "duplicate_count": dupe_n,
         })

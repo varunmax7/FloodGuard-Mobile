@@ -14,7 +14,7 @@ class FloodReportPublicSerializer(serializers.ModelSerializer):
         fields = [
             "id", "depth", "road", "status",
             "photo_url", "observed_at", "created_at",
-            "lat", "lng", "time_ago",
+            "lat", "lng", "time_ago", "party_size",
         ]
 
     def get_lat(self, obj) -> float | None:

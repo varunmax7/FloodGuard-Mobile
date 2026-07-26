@@ -136,6 +136,7 @@ class FloodGuardApi {
     required String road,
     required String clientUuid,
     required DateTime observedAt,
+    int partySize = 1,
     XFile? photo,
     String? photoPath, // used by background WorkManager isolate
   }) async {
@@ -162,10 +163,26 @@ class FloodGuardApi {
       'road': road,
       'client_uuid': clientUuid,
       'observed_at': observedAt.toIso8601String(),
+      'party_size': partySize.toString(),
       if (photoFile != null) 'photo': photoFile,
     });
 
     final res = await _dio.post<Map<String, dynamic>>('/reports/', data: formData);
+    return res.data!;
+  }
+
+  /// GeoJSON FeatureCollection of recent reports for the radar heatmap overlay.
+  Future<Map<String, dynamic>> getReportsHeatmap({
+    int sinceHours = 24,
+    String? bbox,
+  }) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/reports/heatmap/',
+      queryParameters: {
+        'since_hours': sinceHours,
+        if (bbox != null) 'bbox': bbox,
+      },
+    );
     return res.data!;
   }
 

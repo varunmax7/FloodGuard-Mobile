@@ -56,6 +56,13 @@ def submit_report(request):
     if not observed_at:
         observed_at = timezone.now()
 
+    # Optional: how many people are with the reporter (default 1 = alone).
+    try:
+        party_size = int(data.get("party_size", 1) or 1)
+    except (ValueError, TypeError):
+        party_size = 1
+    party_size = max(1, min(party_size, 99))
+
     # ── Idempotency — reject duplicate client_uuid ───────────────────────
     if FloodReport.objects.filter(client_uuid=client_uuid).exists():
         existing = FloodReport.objects.get(client_uuid=client_uuid)
@@ -98,6 +105,7 @@ def submit_report(request):
         status="PENDING",
         observed_at=observed_at,
         client_uuid=client_uuid,
+        party_size=party_size,
     )
 
     return Response({
@@ -143,3 +151,60 @@ def nearby_reports(request):
 
     serializer = FloodReportPublicSerializer(reports, many=True)
     return Response(serializer.data)
+
+
+# Depth → intensity weight used by the client-side heatmap layer.
+# Higher water levels contribute more to the heat ramp.
+_DEPTH_WEIGHT = {"ANKLE": 1.0, "KNEE": 2.0, "WAIST": 3.0, "VEHICLE": 4.0}
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def reports_heatmap(request):
+    """
+    GET /api/v1/reports/heatmap/?since_hours=24&bbox=minLng,minLat,maxLng,maxLat
+
+    Returns a GeoJSON FeatureCollection of recent PENDING/VERIFIED reports
+    for rendering as a heatmap overlay on the radar map. Each feature carries
+    a `weight` (1–4) derived from the reported depth so that deeper reports
+    burn brighter on the heatmap.
+    """
+    try:
+        since_hours = int(request.query_params.get("since_hours", 24))
+    except (ValueError, TypeError):
+        since_hours = 24
+    since_hours = max(1, min(since_hours, 168))  # clamp 1h – 7 days
+
+    qs = FloodReport.objects.filter(
+        observed_at__gte=timezone.now() - timedelta(hours=since_hours),
+        status__in=["PENDING", "VERIFIED"],
+    )
+
+    bbox = request.query_params.get("bbox")
+    if bbox:
+        try:
+            min_lng, min_lat, max_lng, max_lat = (float(x) for x in bbox.split(","))
+            from django.contrib.gis.geos import Polygon
+            qs = qs.filter(
+                geom__within=Polygon.from_bbox((min_lng, min_lat, max_lng, max_lat))
+            )
+        except (ValueError, TypeError):
+            pass  # ignore malformed bbox and return full set
+
+    features = []
+    for r in qs.only("id", "geom", "depth", "status", "observed_at")[:500]:
+        if r.geom is None:
+            continue
+        features.append({
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [r.geom.x, r.geom.y]},
+            "properties": {
+                "id": str(r.id),
+                "depth": r.depth,
+                "status": r.status,
+                "weight": _DEPTH_WEIGHT.get(r.depth, 1.0),
+                "observed_at": r.observed_at.isoformat(),
+            },
+        })
+
+    return Response({"type": "FeatureCollection", "features": features})

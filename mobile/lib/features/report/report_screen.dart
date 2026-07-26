@@ -26,6 +26,7 @@ import '../../design/widgets/fg_card.dart';
 import '../../design/widgets/risk_dot.dart';
 import '../../design/widgets/skeleton_loader.dart';
 import '../area_detail/area_detail_providers.dart';
+import '../radar/radar_screen.dart' show reportsHeatmapProvider;
 import 'report_constants.dart';
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   // Details
   String _depth = 'ANKLE';
   String _road = 'PASSABLE';
+  int _partySize = 1; // 1 = alone; capped at 6 (6 chip means "6+")
   DateTime _observedAt = DateTime.now();
 
   // Submit state
@@ -194,10 +196,14 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         road: _road,
         clientUuid: uuid,
         observedAt: _observedAt,
+        partySize: _partySize,
         photo: _photo,
       );
       await db.markSynced(uuid);
       _syncStatus = 'synced';
+      // Refresh dependent views so the new report appears immediately:
+      // radar heatmap overlay + nearby-reports strips.
+      ref.invalidate(reportsHeatmapProvider);
     } catch (_) {
       // Offline — WorkManager will flush when connectivity returns.
       _syncStatus = 'queued';
@@ -236,6 +242,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
               1 => _DetailsStep(
                   depth: _depth,
                   road: _road,
+                  partySize: _partySize,
                   lat: _lat,
                   lng: _lng,
                   observedAt: _observedAt,
@@ -243,6 +250,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                   isSubmitting: _isSubmitting,
                   onDepthChanged: (v) => setState(() => _depth = v),
                   onRoadChanged: (v) => setState(() => _road = v),
+                  onPartySizeChanged: (v) => setState(() => _partySize = v),
                   onRefreshLocation: _refreshLocation,
                   onObservedAtChanged: (dt) =>
                       setState(() => _observedAt = dt),
@@ -590,6 +598,7 @@ class _PhotoStep extends StatelessWidget {
 class _DetailsStep extends StatelessWidget {
   final String depth;
   final String road;
+  final int partySize;
   final double? lat;
   final double? lng;
   final DateTime observedAt;
@@ -597,6 +606,7 @@ class _DetailsStep extends StatelessWidget {
   final bool isSubmitting;
   final ValueChanged<String> onDepthChanged;
   final ValueChanged<String> onRoadChanged;
+  final ValueChanged<int> onPartySizeChanged;
   final VoidCallback onRefreshLocation;
   final ValueChanged<DateTime> onObservedAtChanged;
   final VoidCallback onBack;
@@ -605,6 +615,7 @@ class _DetailsStep extends StatelessWidget {
   const _DetailsStep({
     required this.depth,
     required this.road,
+    required this.partySize,
     required this.lat,
     required this.lng,
     required this.observedAt,
@@ -612,6 +623,7 @@ class _DetailsStep extends StatelessWidget {
     required this.isSubmitting,
     required this.onDepthChanged,
     required this.onRoadChanged,
+    required this.onPartySizeChanged,
     required this.onRefreshLocation,
     required this.onObservedAtChanged,
     required this.onBack,
@@ -677,6 +689,19 @@ class _DetailsStep extends StatelessWidget {
                         ),
                       ))
                   .toList(),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // People with you
+          _sectionLabel('People with you'),
+          const SizedBox(height: 8),
+          FgCard(
+            padding: const EdgeInsets.all(12),
+            child: _PartySizePicker(
+              value: partySize,
+              onChanged: onPartySizeChanged,
             ),
           ),
 
@@ -812,6 +837,68 @@ class _DetailsStep extends StatelessWidget {
           color: AppColors.textPrimary,
         ),
       );
+}
+
+class _PartySizePicker extends StatelessWidget {
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  const _PartySizePicker({required this.value, required this.onChanged});
+
+  // Chip options: (party_size stored, display label)
+  static const _options = [
+    (1, 'Alone'),
+    (2, '2'),
+    (3, '3'),
+    (4, '4'),
+    (5, '5'),
+    (6, '6+'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _options.map((opt) {
+        final selected = value == opt.$1;
+        return GestureDetector(
+          onTap: () => onChanged(opt.$1),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.blue600 : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color:
+                    selected ? AppColors.blue600 : const Color(0xFFCBD5E1),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  opt.$1 == 1 ? Icons.person_outline : Icons.group_outlined,
+                  size: 14,
+                  color: selected ? Colors.white : AppColors.textPrimary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  opt.$2,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: selected ? Colors.white : AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
 }
 
 class _SelectChip extends StatelessWidget {

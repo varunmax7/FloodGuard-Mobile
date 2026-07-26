@@ -40,6 +40,9 @@ class FloodReport(models.Model):
     observed_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     client_uuid = models.UUIDField(unique=True)     # idempotency key from client
+    # How many people were with the reporter at the scene (1 = alone).
+    # Helps moderators gauge severity/witness count.
+    party_size = models.PositiveSmallIntegerField(default=1)
 
     class Meta:
         db_table = "reports_flood_report"

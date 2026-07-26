@@ -54,7 +54,7 @@ const _kStaticBands = [
   RadarIntensityBand(dbzMin: 60, dbzMax: 75, color: '#ff00ff', label: 'Extreme'),
 ];
 
-// ── Provider ──────────────────────────────────────────────────────────────────
+// ── Providers ─────────────────────────────────────────────────────────────────
 
 final radarFramesProvider = FutureProvider<List<RadarFrame>>((ref) async {
   final raw = await ref.watch(apiProvider).getRadarFrames();
@@ -64,6 +64,13 @@ final radarFramesProvider = FutureProvider<List<RadarFrame>>((ref) async {
       .toList()
       .reversed
       .toList();
+});
+
+/// GeoJSON FeatureCollection of recent user reports for the heatmap overlay.
+/// Kept as raw Map so we can hand it straight to MapLibre's addGeoJsonSource.
+final reportsHeatmapProvider =
+    FutureProvider<Map<String, dynamic>>((ref) async {
+  return ref.watch(apiProvider).getReportsHeatmap(sinceHours: 24);
 });
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -82,7 +89,9 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
   bool _isPlaying = true;
   int _currentIndex = 0;
   Timer? _animTimer;
+  Timer? _heatmapPollTimer;
   String? _activeTileUrl;
+  bool _heatmapLayerAdded = false;
 
   @override
   void initState() {
@@ -93,6 +102,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
   @override
   void dispose() {
     _animTimer?.cancel();
+    _heatmapPollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -120,6 +130,81 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
     if (frames.isNotEmpty) {
       await _showFrame(frames, _currentIndex);
       if (_isPlaying) _startAnimation(frames);
+    }
+
+    // Install (empty) heatmap source + layer so the user-report overlay can
+    // populate as soon as data arrives without having to add the layer twice.
+    await _ensureHeatmapLayer();
+    final heatmap = ref.read(reportsHeatmapProvider).valueOrNull;
+    if (heatmap != null) await _applyHeatmap(heatmap);
+
+    // Poll the report feed every 60s so newly-submitted reports appear
+    // without the user having to pull-to-refresh.
+    _heatmapPollTimer?.cancel();
+    _heatmapPollTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (!mounted) return;
+      ref.invalidate(reportsHeatmapProvider);
+    });
+  }
+
+  // ── Reports heatmap layer ────────────────────────────────────────────────
+
+  Future<void> _ensureHeatmapLayer() async {
+    if (_ctrl == null || !_styleLoaded || _heatmapLayerAdded) return;
+    try {
+      await _ctrl!.addGeoJsonSource(
+        'reports-heatmap',
+        const {'type': 'FeatureCollection', 'features': []},
+      );
+      await _ctrl!.addHeatmapLayer(
+        'reports-heatmap',
+        'reports-heatmap-layer',
+        HeatmapLayerProperties(
+          // Report weight = depth severity (1..4) from the backend.
+          heatmapWeight: [
+            'interpolate', ['linear'], ['get', 'weight'],
+            1, 0.25,
+            4, 1.0,
+          ],
+          // More reports overall → hotter blob. Scale with zoom for stability.
+          heatmapIntensity: [
+            'interpolate', ['linear'], ['zoom'],
+            9, 1,
+            15, 3,
+          ],
+          // Blue → green → yellow → orange → red ramp, transparent at 0.
+          heatmapColor: [
+            'interpolate', ['linear'], ['heatmap-density'],
+            0.0, 'rgba(0, 0, 255, 0)',
+            0.2, 'rgba(65, 105, 225, 0.5)',
+            0.4, 'rgba(0, 255, 0, 0.6)',
+            0.6, 'rgba(255, 255, 0, 0.75)',
+            0.8, 'rgba(255, 140, 0, 0.85)',
+            1.0, 'rgba(255, 0, 0, 0.9)',
+          ],
+          // Radius grows with zoom so single reports don't dominate at zoom 9.
+          heatmapRadius: [
+            'interpolate', ['linear'], ['zoom'],
+            9, 18,
+            13, 35,
+            16, 60,
+          ],
+          heatmapOpacity: 0.85,
+        ),
+      );
+      _heatmapLayerAdded = true;
+    } catch (e) {
+      debugPrint('[RadarScreen] heatmap layer add failed: $e');
+    }
+  }
+
+  Future<void> _applyHeatmap(Map<String, dynamic> geojson) async {
+    if (_ctrl == null || !_styleLoaded) return;
+    if (!_heatmapLayerAdded) await _ensureHeatmapLayer();
+    try {
+      await _ctrl!.setGeoJsonSource('reports-heatmap', geojson);
+    } catch (e) {
+      debugPrint('[RadarScreen] heatmap setGeoJsonSource failed: $e');
     }
   }
 
@@ -204,8 +289,21 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
       });
     });
 
+    // Push new report geometry into the heatmap layer as it comes in.
+    ref.listen<AsyncValue<Map<String, dynamic>>>(reportsHeatmapProvider,
+        (_, next) {
+      next.whenData((geojson) {
+        if (!mounted || !_styleLoaded) return;
+        _applyHeatmap(geojson);
+      });
+    });
+
     final frames = framesAsync.valueOrNull ?? [];
     final hasFrames = frames.isNotEmpty;
+    final heatmapAsync = ref.watch(reportsHeatmapProvider);
+    final reportCount = heatmapAsync.valueOrNull != null
+        ? (heatmapAsync.value!['features'] as List).length
+        : 0;
 
     return Scaffold(
       appBar: FgAppHeader(
@@ -222,6 +320,7 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
                 _isPlaying = true;
               });
               ref.invalidate(radarFramesProvider);
+              ref.invalidate(reportsHeatmapProvider);
             },
           ),
           const SizedBox(width: 4),
@@ -286,6 +385,13 @@ class _RadarScreenState extends ConsumerState<RadarScreen>
                     right: 12,
                     child: _LiveBadge(isLatest: _currentIndex == frames.length - 1),
                   ),
+
+                // ── User-reports heatmap chip (top-left) ─────────────────
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: _ReportsChip(count: reportCount),
+                ),
 
                 // ── dBZ legend — always visible ───────────────────────────
                 Positioned(
@@ -384,6 +490,39 @@ class _LiveBadge extends StatelessWidget {
             isLatest ? 'LIVE' : 'PLAYBACK',
             style: const TextStyle(color: Colors.white, fontSize: 11,
                 fontWeight: FontWeight.w700, letterSpacing: 0.8),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportsChip extends StatelessWidget {
+  final int count;
+  const _ReportsChip({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.people_alt_outlined,
+              color: Colors.white, size: 14),
+          const SizedBox(width: 5),
+          Text(
+            count == 0
+                ? 'No user reports (24h)'
+                : '$count report${count == 1 ? '' : 's'} (24h)',
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600),
           ),
         ],
       ),
