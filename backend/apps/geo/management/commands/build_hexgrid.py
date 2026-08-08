@@ -2,12 +2,11 @@
 build_hexgrid — polyfill an area with H3 hex cells.
 
 Usage:
-    manage.py build_hexgrid --from-districts [--res 7]     # polyfill Assam districts
+    manage.py build_hexgrid --from-districts [--res 7]     # polyfill TG + AP districts
     manage.py build_hexgrid --bbox MIN_LAT MIN_LNG MAX_LAT MAX_LNG [--res 9]
-    manage.py build_hexgrid                                # legacy GHMC default
 
 `--from-districts` polyfills the geometric union of every District row in the
-DB (loaded by `load_assam_boundaries`), so hexes hug real administrative
+DB (loaded by `load_region_boundaries`), so hexes hug real administrative
 borders instead of a rectangular bounding box.
 """
 import h3
@@ -17,8 +16,8 @@ from django.core.management.base import BaseCommand, CommandError
 
 from apps.geo.models import District, HexCell
 
-# GHMC approximate bounding box (lat/lng WGS-84)
-GHMC_BBOX = (17.279, 78.218, 17.566, 78.660)  # min_lat, min_lng, max_lat, max_lng
+# TG + AP combined bounding box (lat/lng WGS-84) — used only as a bbox fallback.
+REGION_BBOX = (12.5, 76.5, 19.9, 84.8)  # min_lat, min_lng, max_lat, max_lng
 
 
 class Command(BaseCommand):
@@ -30,19 +29,18 @@ class Command(BaseCommand):
             nargs=4,
             type=float,
             metavar=("MIN_LAT", "MIN_LNG", "MAX_LAT", "MAX_LNG"),
-            default=list(GHMC_BBOX),
-            help="Bounding box (default: GHMC approximate extent).",
+            default=list(REGION_BBOX),
+            help="Bounding box (default: TG + AP combined extent).",
         )
         parser.add_argument(
             "--from-districts", action="store_true", dest="from_districts",
             help="Polyfill the union of all District rows in the DB "
-                 "(loaded by load_assam_boundaries). Overrides --bbox.",
+                 "(loaded by load_region_boundaries). Overrides --bbox.",
         )
         parser.add_argument(
             "--wipe", action="store_true",
             help="Delete every existing HexCell row before rebuilding. Use when "
-                 "switching regions (e.g. Hyderabad → Assam) so stale cells "
-                 "don't linger in the DB.",
+                 "switching regions so stale cells don't linger in the DB.",
         )
         parser.add_argument(
             "--res",
@@ -69,7 +67,7 @@ class Command(BaseCommand):
         if options["from_districts"]:
             if not District.objects.exists():
                 raise CommandError(
-                    "No District rows found. Run `load_assam_boundaries` first."
+                    "No District rows found. Run `load_region_boundaries` first."
                 )
             self.stdout.write(
                 f"Polyfilling union of {District.objects.count()} districts "

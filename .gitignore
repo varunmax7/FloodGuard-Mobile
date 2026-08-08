@@ -134,3 +134,9 @@ Thumbs.db
 
 # Bundled Flutter web build (copied from mobile/build/web at image-build time)
 backend/spa/
+
+# Excluded per user request
+.claude/
+.claude
+PROJECT.md
+project.md

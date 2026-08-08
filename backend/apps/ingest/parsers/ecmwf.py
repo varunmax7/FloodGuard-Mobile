@@ -25,10 +25,10 @@ FORECAST_SOURCE = "OPEN_METEO"
 # Open-Meteo's underlying ECMWF/GFS grid is ~10 km; sampling per hex (100 m) is
 # massive oversampling and overwhelms the API rate limit. Instead sample a
 # coarse grid across the bbox in ONE call, then nearest-assign to hexes.
-# Sized for a state-scale bbox (~450 km × 700 km for Assam): 20×15 = 300 points
-# → ~30 km spacing, comfortably inside Open-Meteo's ~1000-location batch limit.
-SAMPLE_GRID_NX = 20
-SAMPLE_GRID_NY = 15
+# Sized for the TG + AP combined bbox (~900 km × 830 km): 24×22 = 528 points
+# → ~38 km spacing, comfortably inside Open-Meteo's ~1000-location batch limit.
+SAMPLE_GRID_NX = 24
+SAMPLE_GRID_NY = 22
 
 
 def _mock_forecast(run_ts: datetime, hex_cells: list) -> list[dict]:
@@ -54,24 +54,41 @@ def _mock_forecast(run_ts: datetime, hex_cells: list) -> list[dict]:
     return records
 
 
+# Max locations per Open-Meteo GET. The service accepts up to ~1000 in principle,
+# but each 4-decimal lat/lng adds ~14 bytes to the URL and most edge proxies
+# reject URLs above ~8 KB (HTTP 414). 100 points → ~1.4 KB per coord list,
+# comfortably under the limit.
+OPEN_METEO_BATCH_LIMIT = 100
+
+
 def _open_meteo_batch(lats: list[float], lngs: list[float]) -> list[dict]:
-    """Call Open-Meteo for a batch of coordinates. Returns list of per-location dicts."""
+    """Call Open-Meteo for a batch of coordinates. Chunks internally to stay
+    under the URL length ceiling (~8 KB) that trips 414 URI Too Large."""
     import requests
 
-    params = {
-        "latitude": ",".join(f"{v:.4f}" for v in lats),
-        "longitude": ",".join(f"{v:.4f}" for v in lngs),
-        "hourly": "precipitation",
-        "forecast_days": 2,
-        "timezone": "UTC",
-    }
-    resp = requests.get(OPEN_METEO_URL, params=params, timeout=OPEN_METEO_TIMEOUT)
-    resp.raise_for_status()
-    data = resp.json()
-    # Single-location responses come as an object; batched as a list.
-    if isinstance(data, dict):
-        return [data]
-    return data
+    if len(lats) != len(lngs):
+        raise ValueError(f"lat/lng length mismatch: {len(lats)} vs {len(lngs)}")
+
+    results: list[dict] = []
+    for i in range(0, len(lats), OPEN_METEO_BATCH_LIMIT):
+        chunk_lats = lats[i:i + OPEN_METEO_BATCH_LIMIT]
+        chunk_lngs = lngs[i:i + OPEN_METEO_BATCH_LIMIT]
+        params = {
+            "latitude": ",".join(f"{v:.4f}" for v in chunk_lats),
+            "longitude": ",".join(f"{v:.4f}" for v in chunk_lngs),
+            "hourly": "precipitation",
+            "forecast_days": 2,
+            "timezone": "UTC",
+        }
+        resp = requests.get(OPEN_METEO_URL, params=params, timeout=OPEN_METEO_TIMEOUT)
+        resp.raise_for_status()
+        data = resp.json()
+        # Single-location responses come as an object; batched as a list.
+        if isinstance(data, dict):
+            results.append(data)
+        else:
+            results.extend(data)
+    return results
 
 
 def _sum_from(times: list[str], values: list[float], run_ts: datetime, hours: int) -> float:

@@ -15,6 +15,7 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import '../../core/providers/api_providers.dart';
 import '../../core/services/web_notifications.dart';
 import '../../design/theme/app_theme.dart';
+import '../home/home_providers.dart' show OutsideCoverageException;
 import 'widgets/layer_toggle.dart';
 import 'widgets/location_card.dart';
 import 'widgets/map_search_bar.dart';
@@ -23,16 +24,16 @@ import 'widgets/risk_legend_chip.dart';
 // Free basemap — OpenFreeMap Liberty (no API key required)
 const _kStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
 
-// Assam centre (Guwahati) — fits the whole state at zoom ~7.5.
-const _kRegionCenter = LatLng(26.1445, 91.7362);
-const _kRegionInitialZoom = 7.5;
+// TG + AP combined centre (Vijayawada area) — fits both states at zoom ~6.8.
+const _kRegionCenter = LatLng(16.5000, 80.0000);
+const _kRegionInitialZoom = 6.8;
 
-// Risk level → hex colour. LOW is intentionally near-invisible so HIGH/SEVERE
-// hexes really pop; the user's report overlay draws attention where it matters.
+// Risk level → hex colour. LOW is still muted vs HIGH/SEVERE but visible
+// enough that users see the coverage grid over the map even on dry days.
 const _kRiskFillColor = [
   'match',
   ['get', 'risk_level'],
-  'LOW', '#86EFAC',       // very pale green
+  'LOW', '#4ADE80',       // green — visible but not alarming
   'MODERATE', '#FACC15',
   'HIGH', '#F97316',
   'SEVERE', '#DC2626',    // deep red
@@ -41,24 +42,24 @@ const _kRiskFillColor = [
 const _kRiskFillOpacity = [
   'match',
   ['get', 'risk_level'],
-  'LOW', 0.20,
-  'MODERATE', 0.55,
-  'HIGH', 0.75,
-  'SEVERE', 0.85,
-  0.15,
+  'LOW', 0.45,
+  'MODERATE', 0.65,
+  'HIGH', 0.80,
+  'SEVERE', 0.90,
+  0.35,
 ];
 
 // 24-hour cumulative rainfall (mm) → blue-scale intensity.
-// Chosen to make even trace rain visible without misrepresenting flood risk.
-// 0 mm  → very pale (near-transparent grey), 30+ mm → deep blue.
+// TG+AP monsoon totals rarely exceed ~50 mm/day, so the ramp tops out earlier
+// and starts at a visible blue instead of near-white so even trace-rain cells
+// show up as coverage rather than looking like the basemap.
 const _kRainFillColor = [
   'interpolate', ['linear'], ['get', 'rain_24h'],
-  0,   '#F1F5F9',
-  1,   '#DBEAFE',
-  5,   '#93C5FD',
-  15,  '#3B82F6',
-  30,  '#1D4ED8',
-  60,  '#1E3A8A',
+  0,   '#BFDBFE',
+  2,   '#93C5FD',
+  8,   '#3B82F6',
+  20,  '#1D4ED8',
+  40,  '#1E3A8A',
 ];
 
 class RiskMapScreen extends ConsumerStatefulWidget {
@@ -395,6 +396,25 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
             const LocationSettings(accuracy: LocationAccuracy.high),
       );
 
+      // If the user is outside the TG+AP bbox, skip the API call — it will
+      // 404 — and re-centre on the region instead.
+      final inRegion = pos.latitude  >= 12.5 && pos.latitude  <= 19.9 &&
+                       pos.longitude >= 76.5 && pos.longitude <= 84.8;
+      if (!inRegion) {
+        await _ctrl?.animateCamera(
+          CameraUpdate.newLatLngZoom(_kRegionCenter, _kRegionInitialZoom),
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+              "You're outside the coverage area. FloodGuard currently covers "
+              'Telangana and Andhra Pradesh — showing region view.',
+            ),
+          ));
+        }
+        return;
+      }
+
       await _ctrl?.animateCamera(
         CameraUpdate.newLatLngZoom(
             LatLng(pos.latitude, pos.longitude), 14.0),
@@ -408,6 +428,18 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
           _locationLat = pos.latitude;
           _locationLng = pos.longitude;
         });
+      }
+    } on OutsideCoverageException {
+      await _ctrl?.animateCamera(
+        CameraUpdate.newLatLngZoom(_kRegionCenter, _kRegionInitialZoom),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+            "You're outside the coverage area. FloodGuard currently covers "
+            'Telangana and Andhra Pradesh — showing region view.',
+          ),
+        ));
       }
     } catch (e) {
       if (mounted) {

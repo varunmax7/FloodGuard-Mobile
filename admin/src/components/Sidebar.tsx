@@ -30,9 +30,8 @@ export default function Sidebar() {
     <aside className="w-60 flex-shrink-0 bg-white border-r border-slate-100 flex flex-col h-full">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-slate-100 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-             style={{ background: 'linear-gradient(135deg,#0B2545,#13315C)' }}>
-          <ShieldAlert className="text-white" size={17} />
+        <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 bg-white ring-1 ring-slate-200">
+          <img src="/logo.png" alt="FloodGuard" className="w-full h-full object-contain" />
         </div>
         <div>
           <div className="text-[13px] font-bold text-slate-900 leading-tight">FloodGuard</div>

@@ -250,8 +250,13 @@ else:
 # H3 resolution used by build_hexgrid and every lat/lng → cell lookup.
 # Must match the res the hexgrid was built at, or point → hex resolution fails.
 #   res 9 (~174 m edge)  — city-scale (GHMC / Hyderabad legacy)
-#   res 7 (~1.2 km edge) — state-scale (Assam)
+#   res 7 (~1.2 km edge) — state-scale / multi-state (Telangana + Andhra Pradesh)
 H3_RESOLUTION = config("H3_RESOLUTION", default=7, cast=int)
+
+# Region metadata — displayed in APIs and used by ingest / map viewports.
+REGION_NAME = config("REGION_NAME", default="Telangana & Andhra Pradesh")
+# (min_lng, min_lat, max_lng, max_lat) for the combined TG + AP extent.
+REGION_BBOX = (76.5, 12.5, 84.8, 19.9)
 
 # ── Ingest pipeline ───────────────────────────────────────────────────────────
 # INGEST_MOCK=True → tasks use synthetic fixture data (no network calls).

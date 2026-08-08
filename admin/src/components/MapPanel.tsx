@@ -11,9 +11,10 @@ interface Props {
 }
 
 const DEFAULT_STYLE = 'https://tiles.openfreemap.org/styles/liberty'
-// Assam centre (Guwahati). Zoom 7.5 fits the whole state in a laptop viewport.
-const REGION_CENTER: [number, number] = [91.7362, 26.1445]
-const REGION_ZOOM = 7.5
+// TG + AP combined centre (Vijayawada area). Zoom 6.8 fits both states in a
+// laptop viewport. MapLibre uses [lng, lat].
+const REGION_CENTER: [number, number] = [80.0000, 16.5000]
+const REGION_ZOOM = 6.8
 
 export default function MapPanel({
   style = DEFAULT_STYLE,

@@ -64,30 +64,19 @@ class _HeaderTitle extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Shield + water drop composite logo
+        // FloodGuard brand logo — white pill so the navy mark stays readable
+        // against the navy header gradient.
         Container(
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: Colors.white.withAlpha(38), // 15% opacity
+            color: Colors.white,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              const Icon(Icons.shield, color: Colors.white, size: 22),
-              Positioned(
-                bottom: 7,
-                child: Container(
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF60A5FA),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
+          clipBehavior: Clip.antiAlias,
+          child: Image.asset(
+            'assets/images/logo.png',
+            fit: BoxFit.contain,
           ),
         ),
         const SizedBox(width: 10),
@@ -105,7 +94,7 @@ class _HeaderTitle extends StatelessWidget {
               ),
             ),
             Text(
-              'Assam Flood Alert',
+              'TG & AP Flood Alert',
               style: TextStyle(
                 color: Colors.white.withAlpha(204), // 80% opacity
                 fontSize: 11,

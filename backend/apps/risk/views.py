@@ -97,13 +97,30 @@ def risk_hexes(request):
 
     bbox_poly = Polygon.from_bbox((min_lng, min_lat, max_lng, max_lat))
 
+    # Cap payload for wide bboxes (e.g. whole-region view fits ~51k hexes,
+    # ~10 MB GeoJSON — browsers can't render that smoothly). We order so the
+    # highest-risk cells always survive the cap, then let the remainder fill
+    # up to MAX_FEATURES. On a dry day (all LOW) this returns a representative
+    # top-K sample; on an active day every SEVERE/HIGH cell is guaranteed.
+    from django.db.models import Case, When, IntegerField, Value
+    RISK_ORDER = Case(
+        When(risk_level="SEVERE",   then=Value(4)),
+        When(risk_level="HIGH",     then=Value(3)),
+        When(risk_level="MODERATE", then=Value(2)),
+        When(risk_level="LOW",      then=Value(1)),
+        default=Value(0),
+        output_field=IntegerField(),
+    )
+    MAX_FEATURES = 5000
+
     snapshots = (
         RiskSnapshot.objects
         .filter(ts=ts, hex__centroid__within=bbox_poly)
         .select_related("hex")
-        .annotate(geojson=AsGeoJSON("hex__geom"))
+        .annotate(geojson=AsGeoJSON("hex__geom"), risk_order=RISK_ORDER)
         .only("risk_level", "hazard_class", "confidence",
               "rain_1h", "rain_24h", "hex__h3_index")
+        .order_by("-risk_order", "-confidence", "hex__h3_index")[:MAX_FEATURES]
     )
 
     features = []
@@ -281,7 +298,7 @@ def risk_overview(request):
 
 # ── GET /risk/hourly-forecast ─────────────────────────────────────────────────
 
-REGION_CENTROID = (26.1445, 91.7362)  # Guwahati — geographic centre of Assam
+REGION_CENTROID = (16.5000, 80.0000)  # Vijayawada area — centre of TG + AP union
 # Legacy alias kept until every caller uses REGION_CENTROID.
 HYD_CENTROID = REGION_CENTROID
 OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"

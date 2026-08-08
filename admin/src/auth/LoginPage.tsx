@@ -30,13 +30,12 @@ export default function LoginPage() {
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8 gap-3">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-               style={{ background: 'linear-gradient(135deg,#0B2545,#13315C)' }}>
-            <ShieldAlert className="text-white" size={28} />
+          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white ring-1 ring-slate-200">
+            <img src="/logo.png" alt="FloodGuard" className="w-full h-full object-contain" />
           </div>
           <div className="text-center">
             <h1 className="text-xl font-bold text-slate-900">FloodGuard Admin</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Assam Operations Console</p>
+            <p className="text-sm text-slate-500 mt-0.5">Telangana &amp; Andhra Pradesh Operations Console</p>
           </div>
         </div>
 

@@ -1,22 +1,29 @@
-"""geo/models.py — HexCell, AwsStation, AwsObservation + District/Taluka (Assam scope)."""
+"""geo/models.py — HexCell, AwsStation, AwsObservation + District/Taluka (Telangana + AP)."""
 from django.contrib.gis.db import models
 
 
 class District(models.Model):
     """
     Administrative district. Populated from the Survey of India district
-    boundary layer via the `load_assam_boundaries` management command.
+    boundary layer via the `load_region_boundaries` management command.
+    Covers Telangana (33 districts) + Andhra Pradesh (26 districts).
+    Name is not globally unique across states — uniqueness is scoped to (state, name).
     """
-    name = models.CharField(max_length=64, unique=True)   # canonical name
-    state = models.CharField(max_length=32, default="Assam")
+    name = models.CharField(max_length=64)                # canonical district name
+    state = models.CharField(max_length=32)               # "Telangana" or "Andhra Pradesh"
     geom = models.MultiPolygonField(srid=4326)
     centroid = models.PointField(srid=4326)
 
     class Meta:
         db_table = "geo_district"
-        ordering = ["name"]
+        ordering = ["state", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["state", "name"],
+                                    name="geo_district_state_name_uniq"),
+        ]
         indexes = [
             models.Index(fields=["name"]),
+            models.Index(fields=["state"]),
         ]
 
     def __str__(self):

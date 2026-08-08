@@ -41,12 +41,12 @@ class _MapSearchBarState extends State<MapSearchBar> {
       final res = await _dio.get<List<dynamic>>(
         'https://nominatim.openstreetmap.org/search',
         queryParameters: {
-          'q': '$query Assam',
+          'q': '$query Telangana Andhra Pradesh',
           'format': 'json',
           'limit': 5,
           // Nominatim viewbox order: left,top,right,bottom (lng,lat,lng,lat).
-          // Assam roughly spans 89.5°E–96.1°E, 24.1°N–28.2°N.
-          'viewbox': '89.5,28.2,96.1,24.1',
+          // TG + AP combined roughly spans 76.5°E–84.8°E, 12.5°N–19.9°N.
+          'viewbox': '76.5,19.9,84.8,12.5',
           'bounded': 1,
           'countrycodes': 'in',
         },
@@ -121,7 +121,7 @@ class _MapSearchBarState extends State<MapSearchBar> {
                   style: const TextStyle(fontSize: 14),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
-                    hintText: 'Search area in Assam...',
+                    hintText: 'Search area in Telangana or AP...',
                     hintStyle:
                         TextStyle(fontSize: 14, color: AppColors.textMuted),
                     isDense: true,

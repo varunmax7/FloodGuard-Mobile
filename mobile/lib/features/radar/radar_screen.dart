@@ -39,8 +39,8 @@ const _kSatelliteStyle = '''{
     {"id": "labels", "type": "raster", "source": "labels", "paint": {"raster-opacity": 0.9}}
   ]
 }''';
-const _kRegionCenter = LatLng(26.1445, 91.7362); // Guwahati / Assam centre
-const _kRegionInitialZoom = 7.5;
+const _kRegionCenter = LatLng(16.5000, 80.0000); // Vijayawada / TG + AP centre
+const _kRegionInitialZoom = 6.8;
 const _kAnimInterval = Duration(milliseconds: 800);
 
 // Static dBZ colour scale — matches RainViewer colorScheme=4 (Weather Channel).
