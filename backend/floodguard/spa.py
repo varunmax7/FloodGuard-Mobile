@@ -15,10 +15,19 @@ from django.http import FileResponse, Http404
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
 
-# Points at floodguard/mobile/build/web/ — sibling of the backend directory.
-FLUTTER_WEB_ROOT = (
-    Path(__file__).resolve().parent.parent.parent / "mobile" / "build" / "web"
-).resolve()
+# Priority order:
+#   1. FLUTTER_WEB_ROOT env var (explicit override)
+#   2. backend/spa/  (production — bundled into the Docker image)
+#   3. ../mobile/build/web/  (local dev — served directly from the repo)
+import os as _os
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent
+_env_root = _os.environ.get("FLUTTER_WEB_ROOT", "").strip()
+if _env_root:
+    FLUTTER_WEB_ROOT = Path(_env_root).resolve()
+elif (_BACKEND_ROOT / "spa" / "index.html").is_file():
+    FLUTTER_WEB_ROOT = (_BACKEND_ROOT / "spa").resolve()
+else:
+    FLUTTER_WEB_ROOT = (_BACKEND_ROOT.parent / "mobile" / "build" / "web").resolve()
 
 
 def _serve_file(path: Path):

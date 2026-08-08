@@ -13,6 +13,7 @@ from .permissions import IsOperatorOrAdmin
 def queue(request):
     """GET /api/v1/admin/moderation/queue/ — pending reports with duplicate hints."""
     from apps.reports.models import FloodReport
+    from apps.reports.photo_urls import resolve_photo_url
 
     pending = (FloodReport.objects
                .filter(status="PENDING")
@@ -36,7 +37,8 @@ def queue(request):
             "depth":           r.depth,
             "road":            r.road,
             "status":          r.status,
-            "photo_url":       r.photo_url,
+            "photo_url":       resolve_photo_url(r.photo_url),
+            "description":     r.description,
             "observed_at":     r.observed_at.isoformat(),
             "created_at":      r.created_at.isoformat(),
             "lat":             r.geom.y,

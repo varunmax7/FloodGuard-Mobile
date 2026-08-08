@@ -47,7 +47,8 @@ export default function LoginPage() {
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+910000000000"
+              placeholder="10-digit phone or +91…"
+              autoComplete="username"
               required
               className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -58,6 +59,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
               required
               className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -78,10 +80,6 @@ export default function LoginPage() {
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-
-        <p className="text-xs text-slate-400 text-center mt-6">
-          Default admin: <span className="font-mono">+910000000000 / admin123</span>
-        </p>
       </div>
     </div>
   )

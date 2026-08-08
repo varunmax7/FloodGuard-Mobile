@@ -11,88 +11,80 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import SavedPlace, User
 from .serializers import (
     DeviceTokenSerializer,
-    OtpRequestSerializer,
-    OtpVerifySerializer,
+    LoginSerializer,
+    RegisterSerializer,
     SavedPlacePatchSerializer,
     SavedPlaceSerializer,
+    _normalize_phone,
 )
 
 logger = logging.getLogger("floodguard")
 
 
-# ── Throttle classes ──────────────────────────────────────────────────────────
-
-class OtpRequestThrottle(AnonRateThrottle):
-    scope = "otp_request"
+class AuthThrottle(AnonRateThrottle):
+    scope = "otp_verify"  # reuse the tighter rate-limit bucket
 
 
-class OtpVerifyThrottle(AnonRateThrottle):
-    scope = "otp_verify"
-
-
-# ── Auth endpoints ────────────────────────────────────────────────────────────
-
-@api_view(["POST"])
-@permission_classes([AllowAny])
-@throttle_classes([OtpRequestThrottle])
-def otp_request(request):
-    """
-    POST /api/v1/auth/otp/request
-
-    Firebase phone OTP is initiated entirely on the client (Flutter Firebase SDK).
-    This endpoint validates the phone format and returns a confirmation.
-    The client uses the returned request_id as a correlation handle only.
-    """
-    serializer = OtpRequestSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    return Response({
-        "request_id": "firebase-client-side",
-        "detail": "Initiate phone OTP via the Firebase client SDK, then POST the ID token to /auth/otp/verify.",
-    })
-
-
-@api_view(["POST"])
-@permission_classes([AllowAny])
-@throttle_classes([OtpVerifyThrottle])
-def otp_verify(request):
-    """
-    POST /api/v1/auth/otp/verify
-    Body: {id_token, fcm_token?}
-
-    Verifies the Firebase ID token, upserts the User record,
-    stores the FCM token, and returns a SimpleJWT access+refresh pair.
-
-    DEV MODE: when no Firebase credentials are configured, pass
-    an E.164 phone number as id_token (e.g. +919999999999).
-    """
-    serializer = OtpVerifySerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-
-    id_token = serializer.validated_data["id_token"]
-    fcm_token = serializer.validated_data.get("fcm_token", "")
-
-    try:
-        from floodguard.firebase import verify_firebase_token
-        phone = verify_firebase_token(id_token)
-    except ValueError as exc:
-        logger.warning("Auth token rejected: %s", exc)
-        return Response({"detail": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
-
-    user, created = User.objects.get_or_create(phone=phone)
+def _issue_tokens(user, fcm_token: str, created: bool):
     if fcm_token and user.fcm_token != fcm_token:
         user.fcm_token = fcm_token
         user.save(update_fields=["fcm_token"])
-
     refresh = RefreshToken.for_user(user)
     return Response({
         "access": str(refresh.access_token),
         "refresh": str(refresh),
-        "user": {
-            "id": str(user.id),
-            "phone": user.phone,
-            "created": created,
-        },
+        "user": {"id": str(user.id), "phone": user.phone, "created": created},
     }, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@throttle_classes([AuthThrottle])
+def register(request):
+    """
+    POST /api/v1/auth/register/
+    Body: {phone, password, fcm_token?}
+    Creates a new user with a hashed password and returns JWT access+refresh.
+    """
+    serializer = RegisterSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    phone = _normalize_phone(serializer.validated_data["phone"])
+    password = serializer.validated_data["password"]
+    fcm_token = serializer.validated_data.get("fcm_token", "")
+
+    if User.objects.filter(phone=phone).exists():
+        return Response(
+            {"detail": "An account with this phone number already exists. Log in instead."},
+            status=status.HTTP_409_CONFLICT,
+        )
+    user = User.objects.create_user(phone=phone, password=password)
+    return _issue_tokens(user, fcm_token, created=True)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@throttle_classes([AuthThrottle])
+def login(request):
+    """
+    POST /api/v1/auth/login/
+    Body: {phone, password, fcm_token?}
+    Validates credentials and returns JWT access+refresh.
+    """
+    serializer = LoginSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    phone = _normalize_phone(serializer.validated_data["phone"])
+    password = serializer.validated_data["password"]
+    fcm_token = serializer.validated_data.get("fcm_token", "")
+
+    try:
+        user = User.objects.get(phone=phone)
+    except User.DoesNotExist:
+        return Response({"detail": "Invalid phone number or password."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    if not user.is_active or not user.check_password(password):
+        return Response({"detail": "Invalid phone number or password."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    return _issue_tokens(user, fcm_token, created=False)
 
 
 # ── Saved Places ──────────────────────────────────────────────────────────────

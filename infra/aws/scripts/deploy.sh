@@ -46,6 +46,19 @@ log "Authenticating Docker to ECR..."
 aws ecr get-login-password --region "$REGION" \
     | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
+# ── Bundle Flutter web build into the Docker build context ──────────────────
+# spa.py serves backend/spa/ when present, falling back to ../mobile/build/web
+# in local dev. The Docker image only sees files under backend/, so we mirror
+# the mobile build in before docker build. Missing build → warn, don't fail.
+if [[ -f "${PROJECT_ROOT}/mobile/build/web/index.html" ]]; then
+    log "Bundling Flutter web build (mobile/build/web -> backend/spa)..."
+    rm -rf "${PROJECT_ROOT}/backend/spa"
+    cp -R "${PROJECT_ROOT}/mobile/build/web" "${PROJECT_ROOT}/backend/spa"
+    rm -f "${PROJECT_ROOT}/backend/spa/index.html.bak"
+else
+    echo "  [WARN] mobile/build/web/index.html missing — SPA will 404 at /. Run: cd mobile && flutter build web" >&2
+fi
+
 log "Building image (linux/amd64)..."
 docker buildx build \
     --platform linux/amd64 \

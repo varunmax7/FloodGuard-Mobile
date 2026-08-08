@@ -2,8 +2,10 @@
 library;
 
 import 'dart:async';
+import 'dart:convert' show jsonDecode;
 import 'dart:math' show Point;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -11,6 +13,7 @@ import 'package:go_router/go_router.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../../core/providers/api_providers.dart';
+import '../../core/services/web_notifications.dart';
 import '../../design/theme/app_theme.dart';
 import 'widgets/layer_toggle.dart';
 import 'widgets/location_card.dart';
@@ -24,15 +27,25 @@ const _kStyleUrl = 'https://tiles.openfreemap.org/styles/liberty';
 const _kRegionCenter = LatLng(26.1445, 91.7362);
 const _kRegionInitialZoom = 7.5;
 
-// Risk level → hex colour (§2 tokens)
+// Risk level → hex colour. LOW is intentionally near-invisible so HIGH/SEVERE
+// hexes really pop; the user's report overlay draws attention where it matters.
 const _kRiskFillColor = [
   'match',
   ['get', 'risk_level'],
-  'LOW', '#22C55E',
+  'LOW', '#86EFAC',       // very pale green
   'MODERATE', '#FACC15',
   'HIGH', '#F97316',
-  'SEVERE', '#EF4444',
-  '#94A3B8',
+  'SEVERE', '#DC2626',    // deep red
+  '#CBD5E1',
+];
+const _kRiskFillOpacity = [
+  'match',
+  ['get', 'risk_level'],
+  'LOW', 0.20,
+  'MODERATE', 0.55,
+  'HIGH', 0.75,
+  'SEVERE', 0.85,
+  0.15,
 ];
 
 // 24-hour cumulative rainfall (mm) → blue-scale intensity.
@@ -64,11 +77,16 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
   bool _fetchingHexes = false;
   bool _fetchingLocation = false;
   Timer? _debounce;
+  Timer? _reportsPollTimer;
   bool _layersAdded = false;
+  bool _reportsLayerAdded = false;
+  Set<String> _seenReportIds = <String>{};
+  bool _isFirstReportsFetch = true;
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _reportsPollTimer?.cancel();
     super.dispose();
   }
 
@@ -85,13 +103,11 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
     // Add empty GeoJSON source for risk hexes
     await _ctrl!.addGeoJsonSource('risk-hexes', _emptyFeatureCollection());
 
-    // Fill layer coloured by risk_level.
-    // Try to insert below 'label_other' (lowest label layer in OpenFreeMap Liberty)
-    // so hexes render under place/road labels. Fall back to top-of-stack if the
-    // reference layer doesn't exist in this style version.
+    // Fill layer coloured by risk_level, with per-level opacity so LOW hexes
+    // stay quiet and HIGH/SEVERE really pop.
     const fillProps = FillLayerProperties(
       fillColor: _kRiskFillColor,
-      fillOpacity: 0.55,
+      fillOpacity: _kRiskFillOpacity,
       fillOutlineColor: '#FFFFFF',
     );
 
@@ -120,8 +136,124 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
       }
     }
 
+    // Install the user-report heatmap + circles layer.
+    await _ensureReportsLayer();
+    _refreshReports();
+    _reportsPollTimer?.cancel();
+    _reportsPollTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted) _refreshReports();
+    });
+
+    // Ask browser permission for local flood-report notifications (web only,
+    // no-op on native). Fires as a browser popup on first map view.
+    if (kIsWeb) {
+      // Non-blocking — user can dismiss.
+      unawaited(WebNotifications.requestPermission());
+    }
+
     // Initial hex fetch
     _scheduleHexFetch();
+  }
+
+  // ── Reports overlay (heatmap + per-report circles) ───────────────────────────
+
+  Future<void> _ensureReportsLayer() async {
+    if (_ctrl == null || _reportsLayerAdded) return;
+    try {
+      await _ctrl!.addGeoJsonSource(
+        'reports-src',
+        const {'type': 'FeatureCollection', 'features': []},
+      );
+      // Heatmap for zoomed-out overview
+      await _ctrl!.addHeatmapLayer(
+        'reports-src',
+        'reports-heat',
+        HeatmapLayerProperties(
+          heatmapWeight: [
+            'interpolate', ['linear'], ['get', 'weight'],
+            1, 0.3, 4, 1.0,
+          ],
+          heatmapIntensity: [
+            'interpolate', ['linear'], ['zoom'],
+            9, 1, 15, 3,
+          ],
+          heatmapColor: [
+            'interpolate', ['linear'], ['heatmap-density'],
+            0.0, 'rgba(0, 0, 0, 0)',
+            0.2, 'rgba(255, 200, 0, 0.5)',
+            0.5, 'rgba(255, 100, 0, 0.75)',
+            0.8, 'rgba(230, 40, 20, 0.9)',
+            1.0, 'rgba(180, 0, 0, 0.95)',
+          ],
+          heatmapRadius: [
+            'interpolate', ['linear'], ['zoom'],
+            9, 18, 13, 40, 16, 70,
+          ],
+          heatmapOpacity: [
+            'interpolate', ['linear'], ['zoom'],
+            9, 0.85, 15, 0.35,
+          ],
+        ),
+      );
+      // Individual red dots when zoomed in — never miss a single report.
+      await _ctrl!.addCircleLayer(
+        'reports-src',
+        'reports-dots',
+        CircleLayerProperties(
+          circleRadius: [
+            'interpolate', ['linear'], ['get', 'weight'],
+            1, 5, 4, 12,
+          ],
+          circleColor: '#DC2626',
+          circleOpacity: [
+            'interpolate', ['linear'], ['zoom'],
+            9, 0.0, 12, 0.8,
+          ],
+          circleStrokeColor: '#FFFFFF',
+          circleStrokeWidth: 1.5,
+        ),
+      );
+      _reportsLayerAdded = true;
+    } catch (e) {
+      debugPrint('[RiskMap] reports layer add failed: $e');
+    }
+  }
+
+  Future<void> _refreshReports() async {
+    if (_ctrl == null || !_reportsLayerAdded) return;
+    try {
+      final geojson =
+          await ref.read(apiProvider).getReportsHeatmap(sinceHours: 24);
+      await _ctrl!.setGeoJsonSource('reports-src', geojson);
+
+      // Notify on new reports since last poll (skip the first fetch so the
+      // user isn't spammed with an alert for every historical report).
+      final feats = (geojson['features'] as List?) ?? const [];
+      final currentIds = feats
+          .map((f) => (f as Map)['properties']?['id']?.toString() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toSet();
+      if (!_isFirstReportsFetch) {
+        final newIds = currentIds.difference(_seenReportIds);
+        if (newIds.isNotEmpty && kIsWeb) {
+          for (final f in feats) {
+            final props = (f as Map)['properties'] as Map?;
+            final id = props?['id']?.toString();
+            if (id != null && newIds.contains(id)) {
+              WebNotifications.show(
+                title: 'New flood report',
+                body:
+                    '${props?['depth'] ?? 'Flood'} reported nearby — tap to see the map.',
+              );
+            }
+          }
+        }
+      }
+      _seenReportIds = currentIds;
+      _isFirstReportsFetch = false;
+    } catch (e) {
+      debugPrint('[RiskMap] reports refresh failed: $e');
+    }
   }
 
   void _onCameraIdle() => _scheduleHexFetch();
@@ -183,10 +315,16 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
 
   Future<void> _setFillExpression(List<dynamic> expr) async {
     try {
+      // Risk mode uses per-level opacity so LOW fades and SEVERE pops.
+      // Rain mode uses a single opacity because the colour ramp is continuous.
+      final opacity = identical(expr, _kRiskFillColor) ? _kRiskFillOpacity : 0.65;
       await _ctrl!.setLayerProperties(
         'risk-fill',
-        FillLayerProperties(fillColor: expr, fillOpacity: 0.65,
-            fillOutlineColor: '#FFFFFF'),
+        FillLayerProperties(
+          fillColor: expr,
+          fillOpacity: opacity,
+          fillOutlineColor: '#FFFFFF',
+        ),
       );
     } catch (e) {
       debugPrint('[RiskMap] setLayerProperties failed: $e');
@@ -282,9 +420,29 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
     }
   }
 
-  // ── Map tap → area detail ─────────────────────────────────────────────────────
+  // ── Map tap → report modal OR area detail ────────────────────────────────────
 
   Future<void> _onMapClick(Point<double> point, LatLng coords) async {
+    // First: check whether the user tapped a flood-report dot. queryRenderedFeatures
+    // only returns dots that are currently visible/rendered, so this is a no-op
+    // when the reports layer isn't showing (very zoomed out).
+    if (_reportsLayerAdded && _ctrl != null) {
+      try {
+        final features = await _ctrl!.queryRenderedFeatures(
+          point,
+          ['reports-dots'],
+          null,
+        );
+        if (features.isNotEmpty) {
+          await _openReportDetail(features.first, coords);
+          return;
+        }
+      } catch (_) {
+        // Feature query not supported on this platform — fall through.
+      }
+    }
+
+    // Fallback: existing risk-location lookup (shows the LocationCard).
     try {
       final api = ref.read(apiProvider);
       final data =
@@ -298,6 +456,60 @@ class _RiskMapScreenState extends ConsumerState<RiskMapScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _openReportDetail(dynamic feature, LatLng tapCoords) async {
+    // queryRenderedFeatures returns either a Map or a JSON string depending on
+    // the platform binding; normalize to Map<String, dynamic>.
+    Map<String, dynamic>? feat;
+    if (feature is Map) feat = Map<String, dynamic>.from(feature);
+    else if (feature is String) {
+      try {
+        final decoded = jsonDecode(feature);
+        if (decoded is Map) feat = Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+    }
+    final props = feat?['properties'] is Map
+        ? Map<String, dynamic>.from(feat!['properties'] as Map)
+        : <String, dynamic>{};
+    final geom = feat?['geometry'] is Map
+        ? Map<String, dynamic>.from(feat!['geometry'] as Map)
+        : <String, dynamic>{};
+    final coords = (geom['coordinates'] is List && (geom['coordinates'] as List).length >= 2)
+        ? geom['coordinates'] as List
+        : [tapCoords.longitude, tapCoords.latitude];
+    final lng = (coords[0] as num).toDouble();
+    final lat = (coords[1] as num).toDouble();
+    final id = props['id']?.toString();
+
+    // Heatmap features only carry id/depth/status; fetch the full row from
+    // /reports/nearby/ which includes photo_url and description.
+    Map<String, dynamic>? full;
+    try {
+      final nearby = await ref
+          .read(apiProvider)
+          .getReportsNearby(lat: lat, lng: lng, radiusM: 150, sinceMin: 60 * 24 * 7);
+      for (final r in nearby) {
+        if (r is Map && r['id']?.toString() == id) {
+          full = Map<String, dynamic>.from(r);
+          break;
+        }
+      }
+      full ??= nearby.isNotEmpty ? Map<String, dynamic>.from(nearby.first as Map) : null;
+    } catch (_) {}
+
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => _ReportDetailSheet(
+        report: full ?? {'id': id, 'depth': props['depth'], 'lat': lat, 'lng': lng},
+      ),
+    );
   }
 
   void _viewAreaDetail() {
@@ -466,6 +678,272 @@ class _RadarBanner extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: AppColors.textPrimary),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Report detail bottom sheet ────────────────────────────────────────────────
+
+class _ReportDetailSheet extends StatelessWidget {
+  final Map<String, dynamic> report;
+  const _ReportDetailSheet({required this.report});
+
+  static const _depthLabels = {
+    'ANKLE': 'Ankle deep',
+    'KNEE': 'Knee deep',
+    'WAIST': 'Waist deep',
+    'VEHICLE': 'Vehicle level',
+  };
+  static const _roadLabels = {
+    'PASSABLE': 'Road passable',
+    'DIFFICULT': 'Road difficult',
+    'BLOCKED': 'Road blocked',
+  };
+
+  String _timeAgo(String? iso) {
+    if (iso == null) return '';
+    try {
+      final ts = DateTime.parse(iso);
+      final diff = DateTime.now().difference(ts);
+      if (diff.inMinutes < 1) return 'just now';
+      if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+      if (diff.inDays < 1) return '${diff.inHours}h ago';
+      return '${diff.inDays}d ago';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final photo = report['photo_url'] as String?;
+    final depth = report['depth']?.toString() ?? '';
+    final road = report['road']?.toString() ?? '';
+    final status = report['status']?.toString() ?? 'PENDING';
+    final description = report['description']?.toString() ?? '';
+    final observedAt = report['observed_at']?.toString();
+    final partySize = report['party_size'] as int? ?? 1;
+    final lat = (report['lat'] as num?)?.toDouble();
+    final lng = (report['lng'] as num?)?.toDouble();
+
+    final statusColor = status == 'VERIFIED'
+        ? AppColors.riskLow
+        : status == 'PENDING'
+            ? AppColors.riskModerate
+            : AppColors.textMuted;
+
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFCBD5E1),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded,
+                    color: AppColors.riskSevere, size: 22),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text('Flood report',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      )),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (photo != null && photo.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(
+                  photo,
+                  width: double.infinity,
+                  height: 220,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (_, child, progress) =>
+                      progress == null
+                          ? child
+                          : Container(
+                              height: 220,
+                              color: const Color(0xFFF1F5F9),
+                              alignment: Alignment.center,
+                              child: const CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 120,
+                    color: const Color(0xFFF1F5F9),
+                    alignment: Alignment.center,
+                    child: const Text('Photo unavailable',
+                        style: TextStyle(color: AppColors.textMuted)),
+                  ),
+                ),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
+                height: 100,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: const Text('No photo attached',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (depth.isNotEmpty)
+                  _Chip(
+                    icon: Icons.water,
+                    label: _depthLabels[depth] ?? depth,
+                    bg: const Color(0xFFDBEAFE),
+                    fg: const Color(0xFF1E40AF),
+                  ),
+                if (road.isNotEmpty)
+                  _Chip(
+                    icon: Icons.directions_car_outlined,
+                    label: _roadLabels[road] ?? road,
+                    bg: const Color(0xFFFEF3C7),
+                    fg: const Color(0xFF92400E),
+                  ),
+                _Chip(
+                  icon: Icons.people_outline,
+                  label: partySize <= 1
+                      ? 'Alone'
+                      : '$partySize${partySize >= 6 ? '+' : ''} people',
+                  bg: const Color(0xFFE0E7FF),
+                  fg: const Color(0xFF4338CA),
+                ),
+              ],
+            ),
+          ),
+          if (description.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '"$description"',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                    fontStyle: FontStyle.italic,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
+              children: [
+                const Icon(Icons.schedule,
+                    size: 14, color: AppColors.textMuted),
+                const SizedBox(width: 6),
+                Text(_timeAgo(observedAt),
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textMuted)),
+                if (lat != null && lng != null) ...[
+                  const SizedBox(width: 12),
+                  const Icon(Icons.location_on_outlined,
+                      size: 14, color: AppColors.textMuted),
+                  const SizedBox(width: 6),
+                  Text('${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textMuted)),
+                ],
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color bg;
+  final Color fg;
+  const _Chip({
+    required this.icon,
+    required this.label,
+    required this.bg,
+    required this.fg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: fg),
+          const SizedBox(width: 6),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600, color: fg)),
         ],
       ),
     );

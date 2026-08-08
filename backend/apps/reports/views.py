@@ -72,14 +72,15 @@ def submit_report(request):
         }, status=200)
 
     # ── Handle photo upload ──────────────────────────────────────────────
+    # Store the S3 key in photo_url; presigned URLs are generated on read so
+    # they never expire before the operator opens the moderation queue.
     photo_url = ""
     photo_file = request.FILES.get("photo")
     if photo_file:
         ext = photo_file.name.rsplit(".", 1)[-1] if "." in photo_file.name else "jpg"
         filename = f"reports/{client_uuid}.{ext}"
         saved_path = default_storage.save(filename, ContentFile(photo_file.read()))
-        # Build full URL for the photo
-        photo_url = request.build_absolute_uri(f"/media/{saved_path}")
+        photo_url = saved_path
 
     # ── Create PostGIS point ─────────────────────────────────────────────
     geom = Point(lng, lat, srid=4326)
@@ -95,6 +96,10 @@ def submit_report(request):
     except Exception:
         pass  # h3 not installed or hex not found — fine
 
+    # Optional free-text description (mobile "Describe" field or voice-to-text).
+    # Capped at 500 chars so the moderation UI stays readable.
+    description = (data.get("description") or "").strip()[:500]
+
     # ── Create report ────────────────────────────────────────────────────
     report = FloodReport.objects.create(
         user=request.user if request.user.is_authenticated else None,
@@ -107,6 +112,7 @@ def submit_report(request):
         observed_at=observed_at,
         client_uuid=client_uuid,
         party_size=party_size,
+        description=description,
     )
 
     return Response({

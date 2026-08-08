@@ -19,6 +19,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/platform/camera_capture.dart';
 import '../../core/providers/api_providers.dart';
+import '../../core/services/web_speech.dart';
 import '../../data/models/flood_report.dart';
 import '../../design/theme/app_theme.dart';
 import '../../design/widgets/fg_app_header.dart';
@@ -54,6 +55,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   String _road = 'PASSABLE';
   int _partySize = 1; // 1 = alone; capped at 6 (6 chip means "6+")
   DateTime _observedAt = DateTime.now();
+  final TextEditingController _descriptionCtrl = TextEditingController();
 
   // Submit state
   bool _isSubmitting = false;
@@ -63,6 +65,12 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   void initState() {
     super.initState();
     _fetchLocationSilently();
+  }
+
+  @override
+  void dispose() {
+    _descriptionCtrl.dispose();
+    super.dispose();
   }
 
   // ── Location ──────────────────────────────────────────────────────────────
@@ -197,6 +205,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         clientUuid: uuid,
         observedAt: _observedAt,
         partySize: _partySize,
+        description: _descriptionCtrl.text,
         photo: _photo,
       );
       await db.markSynced(uuid);
@@ -248,6 +257,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                   observedAt: _observedAt,
                   gettingLocation: _gettingLocation,
                   isSubmitting: _isSubmitting,
+                  descriptionCtrl: _descriptionCtrl,
                   onDepthChanged: (v) => setState(() => _depth = v),
                   onRoadChanged: (v) => setState(() => _road = v),
                   onPartySizeChanged: (v) => setState(() => _partySize = v),
@@ -595,7 +605,7 @@ class _PhotoStep extends StatelessWidget {
 
 // ── Step 1: Details ───────────────────────────────────────────────────────────
 
-class _DetailsStep extends StatelessWidget {
+class _DetailsStep extends StatefulWidget {
   final String depth;
   final String road;
   final int partySize;
@@ -604,6 +614,7 @@ class _DetailsStep extends StatelessWidget {
   final DateTime observedAt;
   final bool gettingLocation;
   final bool isSubmitting;
+  final TextEditingController descriptionCtrl;
   final ValueChanged<String> onDepthChanged;
   final ValueChanged<String> onRoadChanged;
   final ValueChanged<int> onPartySizeChanged;
@@ -621,6 +632,7 @@ class _DetailsStep extends StatelessWidget {
     required this.observedAt,
     required this.gettingLocation,
     required this.isSubmitting,
+    required this.descriptionCtrl,
     required this.onDepthChanged,
     required this.onRoadChanged,
     required this.onPartySizeChanged,
@@ -629,6 +641,93 @@ class _DetailsStep extends StatelessWidget {
     required this.onBack,
     required this.onSubmit,
   });
+
+  @override
+  State<_DetailsStep> createState() => _DetailsStepState();
+}
+
+class _DetailsStepState extends State<_DetailsStep> {
+  bool _listening = false;
+  void Function()? _stopListening;
+  String _speechBaseline = ''; // text before current mic session
+
+  void _toggleMic() {
+    if (_listening) {
+      _stopListening?.call();
+      setState(() {
+        _listening = false;
+        _stopListening = null;
+      });
+      return;
+    }
+    _speechBaseline = widget.descriptionCtrl.text;
+    final stop = WebSpeech.listen(
+      onResult: (transcript, isFinal) {
+        if (!mounted) return;
+        final sep = _speechBaseline.isEmpty ||
+                _speechBaseline.endsWith(' ') ||
+                _speechBaseline.endsWith('\n')
+            ? ''
+            : ' ';
+        widget.descriptionCtrl.text = '$_speechBaseline$sep$transcript';
+        widget.descriptionCtrl.selection = TextSelection.collapsed(
+          offset: widget.descriptionCtrl.text.length,
+        );
+        if (isFinal) {
+          _speechBaseline = widget.descriptionCtrl.text;
+          setState(() {
+            _listening = false;
+            _stopListening = null;
+          });
+        }
+      },
+      onError: (reason) {
+        if (!mounted) return;
+        setState(() {
+          _listening = false;
+          _stopListening = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Voice input error: $reason')),
+        );
+      },
+    );
+    if (stop == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Voice input is not supported in this browser. Try Chrome.'),
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _listening = true;
+      _stopListening = stop;
+    });
+  }
+
+  @override
+  void dispose() {
+    _stopListening?.call();
+    super.dispose();
+  }
+
+  // Convenience wrappers so the build() body reads like the original.
+  String get depth => widget.depth;
+  String get road => widget.road;
+  int get partySize => widget.partySize;
+  double? get lat => widget.lat;
+  double? get lng => widget.lng;
+  DateTime get observedAt => widget.observedAt;
+  bool get gettingLocation => widget.gettingLocation;
+  bool get isSubmitting => widget.isSubmitting;
+  ValueChanged<String> get onDepthChanged => widget.onDepthChanged;
+  ValueChanged<String> get onRoadChanged => widget.onRoadChanged;
+  ValueChanged<int> get onPartySizeChanged => widget.onPartySizeChanged;
+  VoidCallback get onRefreshLocation => widget.onRefreshLocation;
+  ValueChanged<DateTime> get onObservedAtChanged => widget.onObservedAtChanged;
+  VoidCallback get onBack => widget.onBack;
+  VoidCallback? get onSubmit => widget.onSubmit;
 
   static const _depths = [
     ('ANKLE', 'Ankle deep', Icons.water_outlined),
@@ -702,6 +801,60 @@ class _DetailsStep extends StatelessWidget {
             child: _PartySizePicker(
               value: partySize,
               onChanged: onPartySizeChanged,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Description + voice input
+          _sectionLabel('Describe the situation (optional)'),
+          const SizedBox(height: 8),
+          FgCard(
+            padding: const EdgeInsets.fromLTRB(12, 4, 8, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: widget.descriptionCtrl,
+                  maxLines: 4,
+                  minLines: 3,
+                  maxLength: 500,
+                  textInputAction: TextInputAction.newline,
+                  decoration: const InputDecoration(
+                    hintText:
+                        "What's happening here? Do you need help? "
+                        "e.g. 'Water is rising fast, need boat to evacuate 4 people.'",
+                    hintStyle: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    counterText: '',
+                  ),
+                  style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _listening ? 'Listening… speak now' : 'Tap the mic to speak',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _listening ? AppColors.blue600 : AppColors.textMuted,
+                        fontWeight: _listening ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _toggleMic,
+                      tooltip: _listening ? 'Stop recording' : 'Speak',
+                      icon: Icon(
+                        _listening ? Icons.stop_circle : Icons.mic,
+                        color: _listening ? AppColors.riskSevere : AppColors.blue600,
+                        size: 26,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
 

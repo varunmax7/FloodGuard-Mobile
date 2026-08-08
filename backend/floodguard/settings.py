@@ -181,10 +181,13 @@ SIMPLE_JWT = {
 }
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-CORS_ALLOWED_ORIGINS = config(
-    "CORS_ALLOWED_ORIGINS",
-    default="http://localhost:5173,http://localhost:3000",
-).split(",")
+CORS_ALLOWED_ORIGINS = [
+    o.strip() for o in config(
+        "CORS_ALLOWED_ORIGINS",
+        default="http://localhost:5173,http://localhost:3000",
+    ).split(",")
+    if o.strip().startswith(("http://", "https://"))
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # Allow any localhost port in dev (Flutter web uses a random port)
@@ -206,7 +209,11 @@ CELERY_TASK_ALWAYS_EAGER = DEBUG  # Run tasks synchronously in local dev
 AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
 AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="")
 AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="floodguard-media")
-AWS_S3_ENDPOINT_URL = config("AWS_S3_ENDPOINT_URL", default="")
+# Custom endpoint (e.g. Cloudflare R2). Only set the attribute when non-empty —
+# passing an empty string makes boto3 raise ValueError("Invalid endpoint: ").
+_s3_endpoint = config("AWS_S3_ENDPOINT_URL", default="").strip()
+if _s3_endpoint:
+    AWS_S3_ENDPOINT_URL = _s3_endpoint
 AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="auto")
 AWS_S3_FILE_OVERWRITE = False
 # Private ACL so photos are served only via pre-signed URLs (not public)
@@ -215,19 +222,18 @@ AWS_QUERYSTRING_AUTH = True
 AWS_QUERYSTRING_EXPIRE = 3600          # signed URL valid for 1 hour
 
 USE_S3_STORAGE = config("USE_S3_STORAGE", default=False, cast=bool)
-if USE_S3_STORAGE or (AWS_ACCESS_KEY_ID and AWS_S3_ENDPOINT_URL):
+if USE_S3_STORAGE or (AWS_ACCESS_KEY_ID and _s3_endpoint):
     STORAGES["default"] = {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"}
 
 # ── Cache — Redis in prod, LocMem in dev ──────────────────────────────────────
+# NOTE: Django's built-in RedisCache passes OPTIONS as kwargs to redis.Redis(),
+# so it must NOT contain django-redis-specific keys like CLIENT_CLASS.
 CACHE_URL = config("CACHE_URL", default="")
 if CACHE_URL:
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
             "LOCATION": CACHE_URL,
-            "OPTIONS": {
-                "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            },
             "KEY_PREFIX": "fg",
             "TIMEOUT": 300,
         }
@@ -326,16 +332,23 @@ if SENTRY_DSN:
 
 # ── Production security headers (no-op in dev) ────────────────────────────────
 if not DEBUG:
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    SECURE_SSL_REDIRECT = True
+    # SSL redirect is opt-in — flip on once the ALB has an HTTPS listener with
+    # an ACM cert. While the ALB is HTTP-only, redirecting to HTTPS causes ALB
+    # health checks (and every real request) to receive a 301 → unhealthy.
+    SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=False, cast=bool)
+    if SECURE_SSL_REDIRECT:
+        SECURE_HSTS_SECONDS = 31536000
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+        SECURE_HSTS_PRELOAD = True
+        SESSION_COOKIE_SECURE = True
+        CSRF_COOKIE_SECURE = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    CORS_ALLOWED_ORIGINS = config(
-        "CORS_ALLOWED_ORIGINS",
-        default="",
-    ).split(",")
+    # Health probes must never be redirected — ALB target-group health checks
+    # expect a 2xx response on /api/v1/readyz/.
+    SECURE_REDIRECT_EXEMPT = [r"^api/v1/livez/?$", r"^api/v1/readyz/?$", r"^api/v1/health/?$"]
+    CORS_ALLOWED_ORIGINS = [
+        o.strip() for o in config("CORS_ALLOWED_ORIGINS", default="").split(",")
+        if o.strip().startswith(("http://", "https://"))
+    ]
     # Remove blanket localhost CORS in prod
     CORS_ALLOWED_ORIGIN_REGEXES = []

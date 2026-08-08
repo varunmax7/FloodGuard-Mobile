@@ -12,7 +12,10 @@ class UserManager(BaseUserManager):
         if not phone:
             raise ValueError("Phone number is required")
         user = self.model(phone=phone, **extra_fields)
-        user.set_unusable_password()
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
         user.save(using=self._db)
         return user
 
@@ -20,12 +23,7 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
-        if password:
-            user = self.model(phone=phone, **extra_fields)
-            user.set_password(password)
-            user.save(using=self._db)
-            return user
-        return self.create_user(phone, **extra_fields)
+        return self.create_user(phone, password=password, **extra_fields)
 
 
 class User(AbstractBaseUser, PermissionsMixin):

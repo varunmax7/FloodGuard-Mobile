@@ -43,6 +43,9 @@ class FloodReport(models.Model):
     # How many people were with the reporter at the scene (1 = alone).
     # Helps moderators gauge severity/witness count.
     party_size = models.PositiveSmallIntegerField(default=1)
+    # Free-text description from the reporter: what they see, what they need,
+    # etc. Captured via the "Describe" text field or the voice-to-text mic.
+    description = models.TextField(blank=True, default="")
 
     class Meta:
         db_table = "reports_flood_report"

@@ -22,12 +22,14 @@ def admin_login(request):
     Body: {phone, password}
     Returns: {access, refresh, user: {phone, role}}
     """
+    from apps.accounts.serializers import _normalize_phone
     phone    = request.data.get("phone", "").strip()
     password = request.data.get("password", "")
 
     if not phone or not password:
         return Response({"detail": "phone and password required."}, status=400)
 
+    phone = _normalize_phone(phone)
     user = authenticate(request, phone=phone, password=password)
     if not user:
         return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
@@ -74,14 +76,26 @@ def audit_calibration(request):
 @permission_classes([IsStaffAny])
 def audit_moderation(request):
     from apps.reports.models import ModerationLog
-    logs = ModerationLog.objects.select_related("actor", "report").order_by("-ts")[:50]
-    return Response([
-        {
+    from apps.reports.photo_urls import resolve_photo_url
+    logs = ModerationLog.objects.select_related("actor", "report", "report__hex").order_by("-ts")[:50]
+    result = []
+    for l in logs:
+        r = l.report
+        result.append({
             "actor": l.actor.phone if l.actor else None,
             "action": l.action,
-            "report_id": str(l.report.id) if l.report else None,
-            "photo_url": l.report.photo_url if l.report else None,
-            "ts": l.ts
-        }
-        for l in logs
-    ])
+            "ts": l.ts,
+            "report_id": str(r.id) if r else None,
+            "photo_url": resolve_photo_url(r.photo_url) if r else None,
+            "depth": r.depth if r else None,
+            "road": r.road if r else None,
+            "status": r.status if r else None,
+            "party_size": r.party_size if r else None,
+            "description": r.description if r else None,
+            "observed_at": r.observed_at.isoformat() if r else None,
+            "created_at": r.created_at.isoformat() if r else None,
+            "lat": r.geom.y if r and r.geom else None,
+            "lon": r.geom.x if r and r.geom else None,
+            "ward": r.hex.ward_name if r and r.hex else None,
+        })
+    return Response(result)

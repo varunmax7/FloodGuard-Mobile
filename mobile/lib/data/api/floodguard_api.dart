@@ -83,12 +83,20 @@ class FloodGuardApi {
     return res.data ?? [];
   }
 
-  Future<Map<String, dynamic>> verifyOtp(String idToken, {String fcmToken = ''}) async {
-    // Explicitly remove Authorization header — a stale JWT in storage must not
-    // reach this endpoint or SimpleJWT raises 401 before AllowAny applies.
+  Future<Map<String, dynamic>> login(String phone, String password, {String fcmToken = ''}) async {
+    // Explicitly clear Authorization — stale tokens must not reach an AllowAny endpoint.
     final res = await _dio.post<Map<String, dynamic>>(
-      '/auth/otp/verify/',
-      data: {'id_token': idToken, 'fcm_token': fcmToken},
+      '/auth/login/',
+      data: {'phone': phone, 'password': password, 'fcm_token': fcmToken},
+      options: Options(headers: {'Authorization': null}),
+    );
+    return res.data!;
+  }
+
+  Future<Map<String, dynamic>> register(String phone, String password, {String fcmToken = ''}) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/auth/register/',
+      data: {'phone': phone, 'password': password, 'fcm_token': fcmToken},
       options: Options(headers: {'Authorization': null}),
     );
     return res.data!;
@@ -137,6 +145,7 @@ class FloodGuardApi {
     required String clientUuid,
     required DateTime observedAt,
     int partySize = 1,
+    String description = '',
     XFile? photo,
     String? photoPath, // used by background WorkManager isolate
   }) async {
@@ -164,6 +173,7 @@ class FloodGuardApi {
       'client_uuid': clientUuid,
       'observed_at': observedAt.toIso8601String(),
       'party_size': partySize.toString(),
+      if (description.trim().isNotEmpty) 'description': description.trim(),
       if (photoFile != null) 'photo': photoFile,
     });
 

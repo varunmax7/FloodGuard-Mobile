@@ -7,20 +7,30 @@ from apps.geo.models import HexCell
 from .models import SavedPlace, User
 
 
-class OtpRequestSerializer(serializers.Serializer):
-    phone = serializers.RegexField(
-        regex=r"^\+[1-9]\d{6,14}$",
-        error_messages={"invalid": "Phone must be in E.164 format, e.g. +919999999999"},
-    )
+_PHONE_REGEX = r"^\+?[1-9]\d{6,14}$"
+_PHONE_ERR = {"invalid": "Enter a valid phone number (7-15 digits, optional leading +)."}
 
 
-class OtpVerifySerializer(serializers.Serializer):
-    """
-    id_token: Firebase ID token obtained after client-side phone OTP.
-              In DEV MODE (no Firebase creds) pass the E.164 phone number directly.
-    fcm_token: Optional FCM push token to register on login.
-    """
-    id_token = serializers.CharField()
+def _normalize_phone(raw: str) -> str:
+    """Store all phones as E.164 (+<countrycode><number>). Assumes IN (+91) if bare."""
+    s = "".join(ch for ch in raw if ch.isdigit() or ch == "+")
+    if s.startswith("+"):
+        return s
+    # 10-digit Indian mobile → prepend +91
+    if len(s) == 10 and s[0] in "6789":
+        return "+91" + s
+    return "+" + s
+
+
+class RegisterSerializer(serializers.Serializer):
+    phone = serializers.RegexField(regex=_PHONE_REGEX, error_messages=_PHONE_ERR)
+    password = serializers.CharField(min_length=6, max_length=128, write_only=True)
+    fcm_token = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class LoginSerializer(serializers.Serializer):
+    phone = serializers.RegexField(regex=_PHONE_REGEX, error_messages=_PHONE_ERR)
+    password = serializers.CharField(write_only=True)
     fcm_token = serializers.CharField(required=False, allow_blank=True, default="")
 
 

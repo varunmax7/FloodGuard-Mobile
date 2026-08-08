@@ -2,20 +2,25 @@
 from django.utils import timezone
 from rest_framework import serializers
 from .models import FloodReport
+from .photo_urls import resolve_photo_url
 
 
 class FloodReportPublicSerializer(serializers.ModelSerializer):
     lat = serializers.SerializerMethodField()
     lng = serializers.SerializerMethodField()
     time_ago = serializers.SerializerMethodField()
+    photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = FloodReport
         fields = [
             "id", "depth", "road", "status",
             "photo_url", "observed_at", "created_at",
-            "lat", "lng", "time_ago", "party_size",
+            "lat", "lng", "time_ago", "party_size", "description",
         ]
+
+    def get_photo_url(self, obj) -> str:
+        return resolve_photo_url(obj.photo_url)
 
     def get_lat(self, obj) -> float | None:
         return obj.geom.y if obj.geom else None

@@ -1,5 +1,6 @@
 """alerts/serializers.py"""
 from rest_framework import serializers
+from apps.reports.photo_urls import resolve_photo_url
 from .models import AlertEvent, AlertDelivery
 
 
@@ -8,6 +9,7 @@ class AlertEventSerializer(serializers.ModelSerializer):
     ward_name = serializers.SerializerMethodField()
     is_active = serializers.SerializerMethodField()
     photo_url = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
     depth = serializers.SerializerMethodField()
     road = serializers.SerializerMethodField()
     lat = serializers.SerializerMethodField()
@@ -19,7 +21,7 @@ class AlertEventSerializer(serializers.ModelSerializer):
             "id", "risk_level", "source", "message",
             "window_start", "window_end", "created_at",
             "h3_index", "ward_name", "is_active",
-            "photo_url", "depth", "road", "lat", "lon",
+            "photo_url", "description", "depth", "road", "lat", "lon",
         ]
 
     def get_h3_index(self, obj):
@@ -33,7 +35,10 @@ class AlertEventSerializer(serializers.ModelSerializer):
         return obj.window_end >= timezone.now()
 
     def get_photo_url(self, obj):
-        return obj.report.photo_url if obj.report else None
+        return resolve_photo_url(obj.report.photo_url) if obj.report else None
+
+    def get_description(self, obj):
+        return obj.report.description if obj.report else None
 
     def get_depth(self, obj):
         return obj.report.depth if obj.report else None

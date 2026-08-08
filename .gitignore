@@ -128,3 +128,9 @@ redis-data/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Local production secrets
+.aws-secrets.local.txt
+
+# Bundled Flutter web build (copied from mobile/build/web at image-build time)
+backend/spa/

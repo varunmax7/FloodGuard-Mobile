@@ -61,6 +61,16 @@ log "Authenticating Docker to ECR..."
 aws ecr get-login-password --region "$REGION" \
     | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
+# Bundle Flutter web build into the Docker build context so spa.py can serve it.
+if [[ -f "${PROJECT_ROOT}/mobile/build/web/index.html" ]]; then
+    log "Bundling Flutter web build (mobile/build/web -> backend/spa)..."
+    rm -rf "${PROJECT_ROOT}/backend/spa"
+    cp -R "${PROJECT_ROOT}/mobile/build/web" "${PROJECT_ROOT}/backend/spa"
+    rm -f "${PROJECT_ROOT}/backend/spa/index.html.bak"
+else
+    warn "mobile/build/web/index.html missing — SPA will 404 at /. Run: cd mobile && flutter build web"
+fi
+
 log "Building backend image (linux/amd64)..."
 docker buildx build \
     --platform linux/amd64 \

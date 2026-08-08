@@ -282,7 +282,7 @@ Resources:
       DBInstanceIdentifier: !Sub "floodguard-${Environment}"
       DBName: floodguard
       Engine: postgres
-      EngineVersion: "16.4"
+      EngineVersion: "16.14"
       DBInstanceClass: !Ref DBInstanceClass
       MasterUsername: floodguard
       MasterUserPassword: !Ref DBPassword
@@ -517,7 +517,9 @@ Resources:
       HealthCheckIntervalSeconds: 30
       HealthCheckTimeoutSeconds: 10
       HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
+      UnhealthyThresholdCount: 5
+      Matcher:
+        HttpCode: "200"
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
           Value: "30"
@@ -555,12 +557,17 @@ Resources:
           Command:
             - sh
             - "-c"
-            - "python manage.py wait_for_db && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn floodguard.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 60 --access-logfile -"
+            - "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn floodguard.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --timeout 60 --access-logfile -"
           Environment:
             - Name: DEBUG
               Value: "False"
+            # ALB is the only ingress path (ECS SG only accepts traffic from
+            # the ALB SG on 8000), so accepting any Host header inside the VPC
+            # is safe and lets ALB IP-based health checks succeed.
             - Name: ALLOWED_HOSTS
-              Value: !Sub "${ALBLoadBalancer.DNSName},localhost"
+              Value: "*"
+            - Name: SECURE_SSL_REDIRECT
+              Value: "False"
             - Name: REDIS_URL
               Value: !Sub "redis://${RedisCluster.RedisEndpoint.Address}:6379/0"
             - Name: CACHE_URL
@@ -720,6 +727,9 @@ Resources:
       DesiredCount: 1
       LaunchType: FARGATE
       EnableExecuteCommand: true
+      # Give the container time to run migrate + collectstatic before ALB
+      # health checks start counting against it.
+      HealthCheckGracePeriodSeconds: 300
       NetworkConfiguration:
         AwsvpcConfiguration:
           Subnets:

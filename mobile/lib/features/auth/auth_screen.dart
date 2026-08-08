@@ -1,21 +1,17 @@
-/// Phone OTP login screen.
-/// Web  → signInWithPhoneNumber + RecaptchaVerifier (invisible).
-/// Native → verifyPhoneNumber (Android auto-verify supported).
+/// Phone-number + password login screen.
+/// One screen, two modes: Sign In (existing user) or Create Account.
 library;
 
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:dio/dio.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/providers/alerts_providers.dart';
 import '../../core/providers/api_providers.dart';
 import '../../design/theme/app_theme.dart';
 import '../../design/widgets/fg_app_header.dart';
-import '../../../main.dart' show firebaseReady;
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -25,164 +21,40 @@ class AuthScreen extends ConsumerStatefulWidget {
 }
 
 class _AuthScreenState extends ConsumerState<AuthScreen> {
-  int _step = 0;
   final _phoneCtrl = TextEditingController();
-  final _otpCtrl   = TextEditingController();
-
-  // Web flow
-  ConfirmationResult? _confirmationResult;
-
-  // Native flow
-  String? _verificationId;
-
-  bool    _loading = false;
+  final _passwordCtrl = TextEditingController();
+  bool _isRegistering = false;
+  bool _obscurePassword = true;
+  bool _loading = false;
   String? _error;
 
   @override
   void dispose() {
     _phoneCtrl.dispose();
-    _otpCtrl.dispose();
+    _passwordCtrl.dispose();
     super.dispose();
   }
 
-  // ── Step 0: send OTP ─────────────────────────────────────────────────────
-
-  Future<void> _sendOtp() async {
+  Future<void> _submit() async {
     final phone = _phoneCtrl.text.trim();
-    if (phone.isEmpty) return;
-
-    if (!firebaseReady) {
-      await _devLogin();
+    final password = _passwordCtrl.text;
+    if (phone.isEmpty || password.isEmpty) {
+      setState(() => _error = 'Enter phone number and password.');
+      return;
+    }
+    if (_isRegistering && password.length < 6) {
+      setState(() => _error = 'Password must be at least 6 characters.');
       return;
     }
 
     setState(() { _loading = true; _error = null; });
-
     try {
-      if (kIsWeb) {
-        await _sendOtpWeb(phone);
-      } else {
-        await _sendOtpNative(phone);
-      }
-    } catch (e) {
-      if (mounted) setState(() { _loading = false; _error = _friendly(e); });
-    }
-  }
+      final api = ref.read(apiProvider);
+      final result = _isRegistering
+          ? await api.register(phone, password)
+          : await api.login(phone, password);
 
-  Future<void> _sendOtpWeb(String phone) async {
-    // signInWithPhoneNumber on web auto-creates an invisible reCAPTCHA.
-    final result = await FirebaseAuth.instance.signInWithPhoneNumber(phone);
-
-    if (mounted) {
-      setState(() {
-        _confirmationResult = result;
-        _step = 1;
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _sendOtpNative(String phone) async {
-    await FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: phone,
-      timeout: const Duration(seconds: 60),
-      verificationCompleted: (PhoneAuthCredential cred) async {
-        await _signInWithCredential(cred);
-      },
-      verificationFailed: (FirebaseAuthException e) {
-        if (mounted) setState(() { _loading = false; _error = _friendly(e); });
-      },
-      codeSent: (String verificationId, int? _) {
-        if (mounted) {
-          setState(() {
-            _verificationId = verificationId;
-            _step = 1;
-            _loading = false;
-          });
-        }
-      },
-      codeAutoRetrievalTimeout: (_) {},
-    );
-  }
-
-  // ── Step 1: verify OTP ────────────────────────────────────────────────────
-
-  Future<void> _verifyOtp() async {
-    if (!firebaseReady) { await _devLogin(); return; }
-    final code = _otpCtrl.text.trim();
-    if (code.length != 6) return;
-    setState(() { _loading = true; _error = null; });
-
-    try {
-      if (kIsWeb && _confirmationResult != null) {
-        final cred = await _confirmationResult!.confirm(code);
-        await _exchangeToken(cred);
-      } else if (_verificationId != null) {
-        final credential = PhoneAuthProvider.credential(
-          verificationId: _verificationId!,
-          smsCode: code,
-        );
-        await _signInWithCredential(credential);
-      }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) setState(() { _loading = false; _error = _friendly(e); });
-    } catch (e) {
-      if (mounted) setState(() { _loading = false; _error = _friendly(e); });
-    }
-  }
-
-  Future<void> _signInWithCredential(PhoneAuthCredential credential) async {
-    final cred = await FirebaseAuth.instance.signInWithCredential(credential);
-    await _exchangeToken(cred);
-  }
-
-  /// Exchange Firebase ID token for backend JWT and persist auth state.
-  /// Falls back to phone-number exchange when backend is in dev mode (no
-  /// Firebase Admin SDK configured — verify_firebase_token rejects the JWT).
-  Future<void> _exchangeToken(UserCredential cred) async {
-    final phone   = cred.user?.phoneNumber ?? _phoneCtrl.text.trim();
-    final idToken = await cred.user?.getIdToken() ?? phone;
-
-    final api = ref.read(apiProvider);
-    Map<String, dynamic> result;
-
-    try {
-      // Production path: backend verifies the real Firebase ID token.
-      result = await api.verifyOtp(idToken);
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        // Dev-mode backend: no Firebase Admin SDK configured — it expects the
-        // raw E.164 phone number as id_token.
-        result = await api.verifyOtp(phone);
-      } else {
-        rethrow;
-      }
-    }
-
-    final access  = result['access']  as String? ?? '';
-    final refresh = result['refresh'] as String? ?? '';
-
-    if (access.isNotEmpty) {
-      await saveTokens(access: access, refresh: refresh);
-      await ref.read(authProvider.notifier).login(phone);
-      ref.read(placesProvider.notifier).fetch();
-    }
-
-    if (mounted) context.pop();
-  }
-
-  // ── Dev-mode shortcut ─────────────────────────────────────────────────────
-
-  Future<void> _devLogin() async {
-    final phone = _phoneCtrl.text.trim();
-    if (!phone.startsWith('+')) {
-      setState(() => _error = 'Enter E.164 format, e.g. +917207157982');
-      return;
-    }
-    setState(() { _loading = true; _error = null; });
-    try {
-      final result  = await ref.read(apiProvider).verifyOtp(phone);
-      final access  = result['access']  as String? ?? '';
+      final access = result['access'] as String? ?? '';
       final refresh = result['refresh'] as String? ?? '';
       if (access.isNotEmpty) {
         await saveTokens(access: access, refresh: refresh);
@@ -190,31 +62,34 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         ref.read(placesProvider.notifier).fetch();
       }
       if (mounted) context.pop();
+    } on DioException catch (e) {
+      final code = e.response?.statusCode;
+      final detail = (e.response?.data is Map)
+          ? (e.response!.data as Map)['detail']?.toString()
+          : null;
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = detail ??
+              (code == 401
+                  ? 'Invalid phone number or password.'
+                  : code == 409
+                      ? 'That phone number is already registered. Sign in instead.'
+                      : 'Something went wrong. Try again.');
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() { _loading = false; _error = _friendly(e); });
+      if (mounted) setState(() { _loading = false; _error = e.toString(); });
     }
   }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  String _friendly(Object e) {
-    if (e is FirebaseAuthException) {
-      return switch (e.code) {
-        'invalid-phone-number'   => 'Invalid phone number format.',
-        'too-many-requests'      => 'Too many attempts. Try again later.',
-        'invalid-verification-code' => 'Wrong OTP. Check and try again.',
-        'quota-exceeded'         => 'SMS quota exceeded. Use Dev login.',
-        'captcha-check-failed'   => 'reCAPTCHA failed. Refresh and retry.',
-        _                        => e.message ?? 'Authentication failed.',
-      };
-    }
-    return e.toString();
-  }
-
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final actionLabel = _isRegistering ? 'Create account' : 'Sign in';
+    final toggleLabel = _isRegistering
+        ? 'Already have an account? Sign in'
+        : "Don't have an account? Create one";
+
     return Scaffold(
       appBar: const FgAppHeader(),
       backgroundColor: const Color(0xFFF1F5F9),
@@ -225,94 +100,72 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
-              const Text('Sign in',
-                  style: TextStyle(
+              Text(actionLabel,
+                  style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary)),
               const SizedBox(height: 8),
-              Text(
-                _step == 0
-                    ? 'Enter your phone number to receive an OTP.'
-                    : 'Enter the 6-digit code sent to ${_phoneCtrl.text}.',
-                style: const TextStyle(fontSize: 15, color: AppColors.textMuted),
+              const Text(
+                'Use your phone number to sign in. Indian numbers can be entered as 10 digits (we add +91).',
+                style: TextStyle(fontSize: 14, color: AppColors.textMuted),
               ),
               const SizedBox(height: 32),
-
-              if (_step == 0) ...[
-                TextField(
-                  controller: _phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone number',
-                    hintText: '+91 9999 999 999',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                  ),
-                  onSubmitted: (_) => _sendOtp(),
+              TextField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Phone number',
+                  hintText: '8798767578  or  +919876543210',
+                  prefixIcon: Icon(Icons.phone_outlined),
                 ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _loading ? null : _sendOtp,
-                    child: _loading
-                        ? const SizedBox(
-                            width: 20, height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : Text(firebaseReady ? 'Send OTP' : 'Sign in (dev mode)'),
-                  ),
-                ),
-                if (firebaseReady) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: _loading ? null : _devLogin,
-                      child: const Text('Dev login (skip Firebase)'),
-                    ),
-                  ),
-                ],
-              ] else ...[
-                TextField(
-                  controller: _otpCtrl,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: '6-digit OTP',
-                    hintText: '123456',
-                    prefixIcon: Icon(Icons.lock_outlined),
-                  ),
-                  onSubmitted: (_) => _verifyOtp(),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _loading ? null : _verifyOtp,
-                    child: _loading
-                        ? const SizedBox(
-                            width: 20, height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Text('Verify OTP'),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordCtrl,
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _submit(),
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  hintText: _isRegistering ? 'At least 6 characters' : 'Enter your password',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextButton(
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _loading ? null : _submit,
+                  child: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : Text(actionLabel),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: TextButton(
                   onPressed: _loading
                       ? null
                       : () => setState(() {
-                            _step = 0;
-                            _otpCtrl.clear();
-                            _confirmationResult = null;
-                            _verificationId = null;
+                            _isRegistering = !_isRegistering;
+                            _error = null;
                           }),
-                  child: const Text('← Back / Resend'),
+                  child: Text(toggleLabel),
                 ),
-              ],
-
+              ),
               if (_error != null) ...[
                 const SizedBox(height: 16),
                 Container(

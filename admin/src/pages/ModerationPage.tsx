@@ -12,6 +12,7 @@ interface Report {
   road: string
   status: string
   photo_url: string
+  description?: string | null
   observed_at: string
   created_at: string
   lat: number
@@ -169,6 +170,12 @@ export default function ModerationPage() {
                           </span>
                         </span>
                       </div>
+
+                      {r.description && (
+                        <div className="mt-1 mb-2 px-2.5 py-1.5 rounded-md bg-slate-50 border border-slate-100 text-[12px] text-slate-700 leading-snug italic">
+                          &ldquo;{r.description}&rdquo;
+                        </div>
+                      )}
 
                       <div className="text-[10px] text-slate-300 flex items-center gap-1">
                         <Copy size={10} />
