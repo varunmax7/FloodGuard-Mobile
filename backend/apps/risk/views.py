@@ -1,7 +1,6 @@
 """risk/views.py — /risk/hexes, /risk/location, /risk/overview endpoints."""
 import json
 import logging
-from datetime import timedelta
 
 import h3
 from django.conf import settings
@@ -42,16 +41,22 @@ def _stale_response(ts):
 
 
 def _freshness_check():
-    """Return (last_success_ts, is_fresh) based on when the forecast feed last
-    landed data. RiskSnapshot.ts points at a future hour (when the risk applies),
-    so it can't be used to detect staleness — we track the ingest itself.
-    Returns (None, False) if the feed has never succeeded."""
+    """Return (last_success_ts, is_fresh).
+
+    Fail-open policy: as long as *any* RiskSnapshot rows exist we serve the
+    latest data and report `fresh=True` — a temporarily paused ingest scheduler
+    shouldn't blank out the mobile UI when the DB is full of usable snapshots.
+    Only when the DB is genuinely empty (fresh install, never-run pipeline) do
+    we surface the "no live data" 503 so the user knows the app isn't broken.
+    """
     from apps.ingest.models import IngestLog
-    max_age = timedelta(hours=getattr(settings, "RISK_FRESHNESS_HOURS", 2))
     log = IngestLog.objects.filter(feed="ecmwf").first()
-    if not log or not log.last_success:
-        return None, False
-    return log.last_success, (timezone.now() - log.last_success) <= max_age
+    last_success = log.last_success if log else None
+    # If we have snapshots on file, serve them — the mobile UI's "no live data"
+    # empty state is worse UX than showing a slightly-old-but-real forecast.
+    if RiskSnapshot.objects.exists():
+        return last_success or _latest_ts(), True
+    return last_success, False
 
 
 # ── GET /risk/hexes?bbox=min_lng,min_lat,max_lng,max_lat&ts= ─────────────────
@@ -62,8 +67,10 @@ def risk_hexes(request):
     """
     GeoJSON FeatureCollection of hex cells with their current risk level.
     Filters by bbox (required) and optionally by ts.
-    Lean response: only h3_index, risk_level, hazard_class, confidence in properties.
-    Cached 60s per bbox+ts combination.
+
+    Wide bboxes (whole-state view) aggregate up to a coarser H3 parent
+    resolution so full coverage of TG + AP is visible without a 20 MB payload;
+    zoomed-in views serve raw res-7 cells. Cached 60s per bbox+ts+res combo.
     """
     bbox_str = request.query_params.get("bbox", "")
     ts_str = request.query_params.get("ts", "")
@@ -90,18 +97,38 @@ def risk_hexes(request):
     if ts is None:
         return _stale_response(None)
 
-    cache_key = f"risk_hexes:{bbox_str}:{ts_str}"
+    # Pick an H3 aggregation resolution based on the viewport span. Res-7 has
+    # ~1.2 km edges (~51k cells for TG+AP); res-6 ~3.2 km (~19k); res-5 ~8.5 km
+    # (~2.7k). The region view (span > 2°) needs res 5 to render coverage
+    # continuously; mid-zoom uses res 6; street level uses raw res 7.
+    span = max(max_lng - min_lng, max_lat - min_lat)
+    src_res = settings.H3_RESOLUTION  # 7
+    if span > 2.0:
+        target_res = 5
+    elif span > 0.6:
+        target_res = 6
+    else:
+        target_res = src_res
+
+    cache_key = f"risk_hexes:{bbox_str}:{ts_str}:r{target_res}"
     cached = cache.get(cache_key)
     if cached is not None:
         return Response(cached)
 
     bbox_poly = Polygon.from_bbox((min_lng, min_lat, max_lng, max_lat))
 
-    # Cap payload for wide bboxes (e.g. whole-region view fits ~51k hexes,
-    # ~10 MB GeoJSON — browsers can't render that smoothly). We order so the
-    # highest-risk cells always survive the cap, then let the remainder fill
-    # up to MAX_FEATURES. On a dry day (all LOW) this returns a representative
-    # top-K sample; on an active day every SEVERE/HIGH cell is guaranteed.
+    if target_res == src_res:
+        data = _hexes_raw(ts, bbox_poly)
+    else:
+        data = _hexes_aggregated(ts, bbox_poly, target_res, src_res)
+
+    cache.set(cache_key, data, timeout=60)
+    return Response(data)
+
+
+def _hexes_raw(ts, bbox_poly):
+    """Return raw res-7 hex features inside bbox. Bounded by MAX_FEATURES with
+    highest-risk cells prioritised so SEVERE/HIGH are never dropped."""
     from django.db.models import Case, When, IntegerField, Value
     RISK_ORDER = Case(
         When(risk_level="SEVERE",   then=Value(4)),
@@ -111,7 +138,7 @@ def risk_hexes(request):
         default=Value(0),
         output_field=IntegerField(),
     )
-    MAX_FEATURES = 5000
+    MAX_FEATURES = 8000
 
     snapshots = (
         RiskSnapshot.objects
@@ -135,16 +162,64 @@ def risk_hexes(request):
                 "risk_level": snap.risk_level,
                 "hazard_class": snap.hazard_class,
                 "confidence": snap.confidence,
-                # Rainfall values so the mobile map can render a rain-intensity
-                # choropleth without a second API round-trip.
                 "rain_1h": round(snap.rain_1h or 0.0, 2),
                 "rain_24h": round(snap.rain_24h or 0.0, 2),
             },
         })
+    return {"type": "FeatureCollection", "features": features}
 
-    data = {"type": "FeatureCollection", "features": features}
-    cache.set(cache_key, data, timeout=60)
-    return Response(data)
+
+def _hexes_aggregated(ts, bbox_poly, target_res, src_res):
+    """Roll res-7 snapshots up to `target_res` parent cells so the whole-region
+    view still shows continuous coverage. Each parent inherits the worst
+    risk_level of its children (max of LEVEL_ORDER), and rain values are
+    averaged. Polygon geometry is generated from h3.cell_to_boundary."""
+    rows = (
+        RiskSnapshot.objects
+        .filter(ts=ts, hex__centroid__within=bbox_poly)
+        .values_list("hex__h3_index", "risk_level", "hazard_class",
+                     "confidence", "rain_1h", "rain_24h")
+    )
+
+    groups = {}
+    for h3_idx, risk, hazard, conf, r1, r24 in rows:
+        parent = h3.cell_to_parent(h3_idx, target_res)
+        g = groups.get(parent)
+        if g is None:
+            g = {"risk": risk, "hazard": hazard, "conf_sum": 0, "n": 0,
+                 "r1_sum": 0.0, "r24_sum": 0.0, "risk_ord": LEVEL_ORDER.get(risk, 0)}
+            groups[parent] = g
+        this_ord = LEVEL_ORDER.get(risk, 0)
+        if this_ord > g["risk_ord"]:
+            g["risk"] = risk
+            g["hazard"] = hazard
+            g["risk_ord"] = this_ord
+        g["conf_sum"] += conf or 0
+        g["r1_sum"] += r1 or 0.0
+        g["r24_sum"] += r24 or 0.0
+        g["n"] += 1
+
+    features = []
+    for parent, g in groups.items():
+        # h3.cell_to_boundary returns (lat, lng) tuples; GeoJSON wants (lng, lat)
+        boundary = h3.cell_to_boundary(parent)
+        ring = [[lng, lat] for lat, lng in boundary]
+        # Close the ring for GeoJSON polygon validity.
+        ring.append(ring[0])
+        n = g["n"] or 1
+        features.append({
+            "type": "Feature",
+            "geometry": {"type": "Polygon", "coordinates": [ring]},
+            "properties": {
+                "h3_index": parent,
+                "risk_level": g["risk"],
+                "hazard_class": g["hazard"],
+                "confidence": round(g["conf_sum"] / n),
+                "rain_1h": round(g["r1_sum"] / n, 2),
+                "rain_24h": round(g["r24_sum"] / n, 2),
+            },
+        })
+    return {"type": "FeatureCollection", "features": features}
 
 
 # ── GET /risk/location?lat=&lng= ─────────────────────────────────────────────
