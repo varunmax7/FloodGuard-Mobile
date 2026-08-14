@@ -1,0 +1,188 @@
+"""Minimal call-session store used by P1.
+
+Backed by Redis in a `call:session:{call_sid}` hash. The full
+`call_sessions` table + SQLAlchemy model + Alembic migration land in
+P5; until then, using Redis keeps P1 self-contained and lets us prove
+the /voice/status → duration write end-to-end.
+
+The interface here is deliberately narrow — everything P5 needs to
+replace lives behind `SessionStore`, so the swap is a one-file change."""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime
+from typing import Protocol
+
+import redis.asyncio as redis
+
+from fg_voice.config import get_settings
+
+_SESSION_TTL_SEC = 7200  # 2 h — covers a call plus a comfortable margin
+_KEY_PREFIX = "fg:call:session:"
+
+
+@dataclass(frozen=True, slots=True)
+class CallSessionRow:
+    call_sid: str
+    report_id: str
+    caller_hash: str
+    direction: str
+    started_at: datetime
+    ended_at: datetime | None = None
+    duration_sec: int | None = None
+    outcome: str | None = None
+
+
+class SessionStore(Protocol):
+    async def create(
+        self,
+        *,
+        call_sid: str,
+        report_id: str,
+        caller_hash: str,
+        direction: str,
+    ) -> None: ...
+
+    async def finalize(
+        self,
+        *,
+        call_sid: str,
+        duration_sec: int | None,
+        outcome: str,
+    ) -> None: ...
+
+    async def get(self, call_sid: str) -> CallSessionRow | None: ...
+
+
+class RedisSessionStore:
+    def __init__(self, client: redis.Redis) -> None:
+        self._r = client
+
+    def _key(self, call_sid: str) -> str:
+        return _KEY_PREFIX + call_sid
+
+    async def create(
+        self,
+        *,
+        call_sid: str,
+        report_id: str,
+        caller_hash: str,
+        direction: str,
+    ) -> None:
+        payload = {
+            "call_sid": call_sid,
+            "report_id": report_id,
+            "caller_hash": caller_hash,
+            "direction": direction,
+            "started_at": datetime.now(UTC).isoformat(),
+        }
+        await self._r.set(self._key(call_sid), json.dumps(payload), ex=_SESSION_TTL_SEC)
+
+    async def finalize(
+        self,
+        *,
+        call_sid: str,
+        duration_sec: int | None,
+        outcome: str,
+    ) -> None:
+        raw = await self._r.get(self._key(call_sid))
+        if raw is None:
+            # /voice/status can arrive before /voice/inbound in rare
+            # reorderings; write a bare finalisation row so we still
+            # have the outcome for post-call reconciliation.
+            payload = {"call_sid": call_sid}
+        else:
+            payload = json.loads(raw)
+        payload["ended_at"] = datetime.now(UTC).isoformat()
+        payload["duration_sec"] = duration_sec
+        payload["outcome"] = outcome
+        await self._r.set(self._key(call_sid), json.dumps(payload), ex=_SESSION_TTL_SEC)
+
+    async def get(self, call_sid: str) -> CallSessionRow | None:
+        raw = await self._r.get(self._key(call_sid))
+        if raw is None:
+            return None
+        p = json.loads(raw)
+        return CallSessionRow(
+            call_sid=p["call_sid"],
+            report_id=p.get("report_id", ""),
+            caller_hash=p.get("caller_hash", ""),
+            direction=p.get("direction", ""),
+            started_at=datetime.fromisoformat(p["started_at"])
+            if "started_at" in p
+            else datetime.now(UTC),
+            ended_at=datetime.fromisoformat(p["ended_at"]) if p.get("ended_at") else None,
+            duration_sec=p.get("duration_sec"),
+            outcome=p.get("outcome"),
+        )
+
+
+class InMemorySessionStore:
+    """Test double. Not used in the request path."""
+
+    def __init__(self) -> None:
+        self._rows: dict[str, CallSessionRow] = {}
+
+    async def create(
+        self,
+        *,
+        call_sid: str,
+        report_id: str,
+        caller_hash: str,
+        direction: str,
+    ) -> None:
+        self._rows[call_sid] = CallSessionRow(
+            call_sid=call_sid,
+            report_id=report_id,
+            caller_hash=caller_hash,
+            direction=direction,
+            started_at=datetime.now(UTC),
+        )
+
+    async def finalize(
+        self,
+        *,
+        call_sid: str,
+        duration_sec: int | None,
+        outcome: str,
+    ) -> None:
+        existing = self._rows.get(call_sid)
+        if existing is None:
+            self._rows[call_sid] = CallSessionRow(
+                call_sid=call_sid,
+                report_id="",
+                caller_hash="",
+                direction="",
+                started_at=datetime.now(UTC),
+                ended_at=datetime.now(UTC),
+                duration_sec=duration_sec,
+                outcome=outcome,
+            )
+            return
+        self._rows[call_sid] = replace(
+            existing,
+            ended_at=datetime.now(UTC),
+            duration_sec=duration_sec,
+            outcome=outcome,
+        )
+
+    async def get(self, call_sid: str) -> CallSessionRow | None:
+        return self._rows.get(call_sid)
+
+
+_singleton: RedisSessionStore | None = None
+
+
+async def get_session_store() -> SessionStore:
+    """Process-wide Redis-backed store. Lazily instantiated."""
+    global _singleton
+    if _singleton is None:
+        client = redis.from_url(
+            get_settings().redis_url,
+            encoding="utf-8",
+            decode_responses=True,
+        )
+        _singleton = RedisSessionStore(client)
+    return _singleton

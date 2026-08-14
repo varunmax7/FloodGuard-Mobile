@@ -1,0 +1,169 @@
+[project]
+name = "fg-voice"
+version = "0.1.0"
+description = "FloodGuard Voice Agent — coastal hazard reporting over Twilio."
+requires-python = ">=3.12,<3.13"
+readme = "README.md"
+license = { text = "Proprietary" }
+authors = [{ name = "Team FloodGuard" }]
+
+dependencies = [
+    # ── Web / ASGI ────────────────────────────────────────────
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "httpx>=0.27",
+    "websockets>=13",
+    "python-multipart>=0.0.20",   # FastAPI Form(...) parsing on /voice/*
+    # ── Config / validation ───────────────────────────────────
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "pyyaml>=6.0",
+    # ── Data / persistence ────────────────────────────────────
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "redis[hiredis]>=5.2",
+    # ── AWS ───────────────────────────────────────────────────
+    "boto3>=1.35",
+    "aioboto3>=13.2",
+    # ── Telephony ─────────────────────────────────────────────
+    "twilio>=9.3",
+    # ── Audio / numeric ───────────────────────────────────────
+    "numpy>=1.26,<2.2",
+    "scipy>=1.14",
+    "audioop-lts>=0.2.1; python_version >= '3.13'",
+    # ── Observability ─────────────────────────────────────────
+    "structlog>=24.4",
+    "opentelemetry-api>=1.28",
+    "opentelemetry-sdk>=1.28",
+    "opentelemetry-instrumentation-fastapi>=0.49b0",
+    "opentelemetry-exporter-otlp-proto-http>=1.28",
+    "prometheus-client>=0.21",
+]
+
+[project.optional-dependencies]
+# Heavy ML / RAG deps — only needed once P3/P4 land. Kept optional so the
+# base image stays small and P0/P1/P2 CI runs fast.
+rag = [
+    "faiss-cpu>=1.9",
+    "sentence-transformers>=3.3",
+    "rapidfuzz>=3.10",
+    "metaphone>=0.6",
+    "pgvector>=0.3",
+]
+llm = [
+    "anthropic>=0.40",
+]
+dev = [
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "pytest-mock>=3.14",
+    "hypothesis>=6.119",
+    "import-linter>=2.1",
+    "pip-audit>=2.7",
+    "types-pyyaml>=6.0",
+    "types-redis>=4.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fg_voice"]
+
+# ─────────────────────────────────────────────────────────────────
+#  Ruff
+# ─────────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",   # pycodestyle / pyflakes
+    "I",             # isort
+    "B",             # bugbear
+    "UP",            # pyupgrade
+    "SIM",           # simplify
+    "RUF",           # ruff-specific
+    "ASYNC",         # async pitfalls (blocking calls in the audio path)
+    "S",             # bandit-lite
+]
+ignore = [
+    "E501",   # line length handled by formatter
+    "S101",   # asserts are fine in tests
+    "B008",   # FastAPI Depends() in default args
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "ASYNC"]
+"scripts/**" = ["S"]
+
+# ─────────────────────────────────────────────────────────────────
+#  MyPy — strict on the deterministic core (conversation/, extraction/)
+# ─────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+no_implicit_optional = true
+check_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["fg_voice.conversation.*", "fg_voice.extraction.*"]
+strict = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+
+# Third-party packages without type stubs. Extend when you add a new dep
+# that ships no py.typed marker.
+[[tool.mypy.overrides]]
+module = [
+    "faiss",
+    "faiss.*",
+    "sentence_transformers",
+    "sentence_transformers.*",
+    "metaphone",
+    "metaphone.*",
+    "rapidfuzz",
+    "rapidfuzz.*",
+]
+ignore_missing_imports = true
+
+# ─────────────────────────────────────────────────────────────────
+#  Pytest
+# ─────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--tb=short",
+]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "unit: fast in-process tests",
+    "property: hypothesis-driven tests",
+    "golden: audio → slot regression",
+    "noise: SNR sweep",
+    "integration: requires local docker-compose",
+    "load: synthetic concurrency",
+    "chaos: dependency-kill tests",
+    "slow: > 5s, skipped by default in CI",
+]
+
+[tool.coverage.run]
+source = ["src/fg_voice"]
+branch = true
+omit = ["*/__init__.py"]

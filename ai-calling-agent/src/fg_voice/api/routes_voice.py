@@ -1,0 +1,143 @@
+"""Twilio HTTP webhooks: /voice/inbound, /voice/status, /voice/fallback.
+
+Every one of these validates X-Twilio-Signature before doing anything
+else. See CLAUDE.md invariant + spec §17.3."""
+
+from __future__ import annotations
+
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Form, Header, HTTPException, Request, status
+from fastapi.responses import Response
+
+from fg_voice.config import get_settings
+from fg_voice.obs.logging import get_logger
+from fg_voice.persistence.session_store import get_session_store
+from fg_voice.telephony.twilio_signature import (
+    InvalidTwilioSignatureError,
+    verify_twilio_signature,
+)
+from fg_voice.telephony.twilio_twiml import connect_stream_twiml, fallback_twiml
+from fg_voice.utils.hashing import hash_msisdn
+
+log = get_logger(__name__)
+router = APIRouter(prefix="/voice", tags=["voice"])
+
+# Overridable at test time — the tests monkeypatch this module attribute
+# with an in-memory store so we don't hit Redis for /voice/* unit tests.
+_session_store_provider = get_session_store
+
+
+def _reconstruct_url(request: Request) -> str:
+    """Rebuild the URL Twilio saw — behind an ALB the scheme and host
+    live in X-Forwarded-* headers, not on request.url."""
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host") or request.headers.get(
+        "host", request.url.hostname or ""
+    )
+    return f"{scheme}://{host}{request.url.path}"
+
+
+async def _validate(
+    request: Request, signature: str | None, params: dict[str, str]
+) -> None:
+    try:
+        verify_twilio_signature(signature, _reconstruct_url(request), params)
+    except InvalidTwilioSignatureError as exc:
+        log.warning(
+            "twilio.signature_rejected",
+            reason=str(exc),
+            path=request.url.path,
+            remote=request.client.host if request.client else None,
+        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden") from exc
+
+
+@router.post("/inbound", response_class=Response)
+async def inbound(
+    request: Request,
+    x_twilio_signature: Annotated[str | None, Header(alias="X-Twilio-Signature")] = None,
+) -> Response:
+    """Twilio POSTs here when a call is answered. We return TwiML that
+    hands control to the Media Streams WSS."""
+    form = await request.form()
+    params: dict[str, str] = {k: str(v) for k, v in form.items()}
+    await _validate(request, x_twilio_signature, params)
+
+    settings = get_settings()
+    call_sid = params.get("CallSid", "")
+    caller = params.get("From", "")
+    caller_hash = hash_msisdn(caller, settings.caller_hash_pepper.get_secret_value())
+
+    # Mint the report_id BEFORE the stream opens — this is the
+    # idempotency key for the whole call (§15.1).
+    report_id = str(uuid.uuid4())
+
+    store = await _session_store_provider()
+    await store.create(
+        call_sid=call_sid,
+        report_id=report_id,
+        caller_hash=caller_hash,
+        direction="inbound",
+    )
+
+    log.info(
+        "voice.inbound",
+        call_sid=call_sid,
+        report_id=report_id,
+        caller_hash=caller_hash[:12] + "…",
+        from_country=params.get("FromCountry"),
+    )
+
+    wss = f"{settings.public_wss_base}/ws/media"
+    body = connect_stream_twiml(
+        wss_url=wss,
+        report_id=report_id,
+        caller_hash=caller_hash,
+    )
+    return Response(content=body, media_type="application/xml")
+
+
+@router.post("/status", response_class=Response)
+async def status_callback(
+    request: Request,
+    x_twilio_signature: Annotated[str | None, Header(alias="X-Twilio-Signature")] = None,
+    CallSid: Annotated[str, Form()] = "",  # noqa: N803 — Twilio field name
+    CallStatus: Annotated[str, Form()] = "",  # noqa: N803
+    CallDuration: Annotated[str, Form()] = "",  # noqa: N803
+) -> Response:
+    """Lifecycle events: initiated | ringing | answered | completed.
+    Persist final duration + outcome on completed."""
+    form = await request.form()
+    await _validate(request, x_twilio_signature, {k: str(v) for k, v in form.items()})
+
+    store = await _session_store_provider()
+
+    if CallStatus == "completed":
+        duration_sec = int(CallDuration) if CallDuration.isdigit() else None
+        await store.finalize(call_sid=CallSid, duration_sec=duration_sec, outcome="completed")
+        log.info("voice.status.completed", call_sid=CallSid, duration_sec=duration_sec)
+    else:
+        log.info("voice.status", call_sid=CallSid, status=CallStatus)
+
+    return Response(status_code=204)
+
+
+@router.post("/fallback", response_class=Response)
+async def fallback(
+    request: Request,
+    x_twilio_signature: Annotated[str | None, Header(alias="X-Twilio-Signature")] = None,
+) -> Response:
+    """Configured on the Twilio number as the Fallback URL. Twilio hits
+    it when /voice/inbound errors or times out. Never fails."""
+    form = await request.form()
+    # Still validate — the fallback URL is a webhook too. If validation
+    # fails we still return the static apology (better than 403 during
+    # an outage).
+    try:
+        await _validate(request, x_twilio_signature, {k: str(v) for k, v in form.items()})
+    except HTTPException:
+        log.warning("voice.fallback.bad_signature")
+    body = fallback_twiml()
+    return Response(content=body, media_type="application/xml")
