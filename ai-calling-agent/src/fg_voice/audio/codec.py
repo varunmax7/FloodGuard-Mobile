@@ -66,5 +66,5 @@ ULAW_SILENCE_BYTE: Final[int] = 0xFF
 
 
 def ulaw_silence(frames: int = 1) -> bytes:
-    """`frames` × 20 ms of μ-law silence."""
+    """`frames` * 20 ms of μ-law silence."""
     return bytes([ULAW_SILENCE_BYTE]) * (TWILIO_FRAME_BYTES_ULAW * frames)

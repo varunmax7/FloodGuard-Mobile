@@ -20,7 +20,7 @@ def test_connect_stream_structure() -> None:
         caller_hash="deadbeef",
     )
     assert xml.startswith(b'<?xml version="1.0" encoding="UTF-8"?>')
-    root = fromstring(xml[xml.index(b"<Response"):])
+    root = fromstring(xml[xml.index(b"<Response") :])
     assert root.tag == "Response"
     connect = root.find("Connect")
     assert connect is not None
@@ -37,7 +37,7 @@ def test_connect_stream_structure() -> None:
 
 def test_fallback_no_sms() -> None:
     xml = fallback_twiml()
-    root = fromstring(xml[xml.index(b"<Response"):])
+    root = fromstring(xml[xml.index(b"<Response") :])
     say = root.find("Say")
     assert say is not None
     assert "temporarily unavailable" in (say.text or "")
@@ -47,7 +47,7 @@ def test_fallback_no_sms() -> None:
 
 def test_fallback_with_sms() -> None:
     xml = fallback_twiml("https://app.floodguard.in/report")
-    root = fromstring(xml[xml.index(b"<Response"):])
+    root = fromstring(xml[xml.index(b"<Response") :])
     sms = root.find("Sms")
     assert sms is not None
     assert "app.floodguard.in/report" in (sms.text or "")
@@ -56,5 +56,5 @@ def test_fallback_with_sms() -> None:
 def test_fatal_hangup_includes_reason_comment() -> None:
     xml = fatal_hangup_twiml("db_unreachable")
     assert b"reason: db_unreachable" in xml
-    root = fromstring(xml[xml.index(b"<Response"):])
+    root = fromstring(xml[xml.index(b"<Response") :])
     assert root.find("Hangup") is not None

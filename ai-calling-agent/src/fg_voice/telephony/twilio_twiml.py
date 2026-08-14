@@ -33,7 +33,7 @@ def connect_stream_twiml(
         ("entrypoint", entrypoint),
     ]:
         SubElement(stream, "Parameter", {"name": name, "value": value})
-    return b'<?xml version="1.0" encoding="UTF-8"?>' + tostring(root, encoding="utf-8")
+    return b'<?xml version="1.0" encoding="UTF-8"?>' + bytes(tostring(root, encoding="utf-8"))
 
 
 def fallback_twiml(sms_link: str | None = None) -> bytes:
@@ -56,7 +56,7 @@ def fallback_twiml(sms_link: str | None = None) -> bytes:
             "or use the FloodGuard app."
         )
     SubElement(root, "Hangup")
-    return b'<?xml version="1.0" encoding="UTF-8"?>' + tostring(root, encoding="utf-8")
+    return b'<?xml version="1.0" encoding="UTF-8"?>' + bytes(tostring(root, encoding="utf-8"))
 
 
 def fatal_hangup_twiml(reason_code: str = "internal_error") -> bytes:
@@ -66,13 +66,12 @@ def fatal_hangup_twiml(reason_code: str = "internal_error") -> bytes:
     root = Element("Response")
     say = SubElement(root, "Say", {"voice": "Polly.Aditi", "language": "en-IN"})
     say.text = (
-        "Sorry, we're unable to take your call right now. "
-        "Please try again shortly. Stay safe."
+        "Sorry, we're unable to take your call right now. Please try again shortly. Stay safe."
     )
     SubElement(root, "Hangup")
     # reason_code is emitted as an XML comment so it shows up in Twilio's
     # inspector without being spoken.
     payload = b'<?xml version="1.0" encoding="UTF-8"?>'
     payload += f"<!-- reason: {quote(reason_code)} -->".encode()
-    payload += tostring(root, encoding="utf-8")
+    payload += bytes(tostring(root, encoding="utf-8"))
     return payload

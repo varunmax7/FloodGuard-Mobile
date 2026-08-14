@@ -39,9 +39,7 @@ def _reconstruct_url(request: Request) -> str:
     return f"{scheme}://{host}{request.url.path}"
 
 
-async def _validate(
-    request: Request, signature: str | None, params: dict[str, str]
-) -> None:
+async def _validate(request: Request, signature: str | None, params: dict[str, str]) -> None:
     try:
         verify_twilio_signature(signature, _reconstruct_url(request), params)
     except InvalidTwilioSignatureError as exc:
@@ -103,9 +101,9 @@ async def inbound(
 async def status_callback(
     request: Request,
     x_twilio_signature: Annotated[str | None, Header(alias="X-Twilio-Signature")] = None,
-    CallSid: Annotated[str, Form()] = "",  # noqa: N803 — Twilio field name
-    CallStatus: Annotated[str, Form()] = "",  # noqa: N803
-    CallDuration: Annotated[str, Form()] = "",  # noqa: N803
+    CallSid: Annotated[str, Form()] = "",
+    CallStatus: Annotated[str, Form()] = "",
+    CallDuration: Annotated[str, Form()] = "",
 ) -> Response:
     """Lifecycle events: initiated | ringing | answered | completed.
     Persist final duration + outcome on completed."""

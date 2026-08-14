@@ -10,7 +10,7 @@ wrong is a foot-gun."""
 
 from __future__ import annotations
 
-from twilio.request_validator import RequestValidator
+from twilio.request_validator import RequestValidator  # type: ignore[import-untyped]
 
 from fg_voice.config import get_settings
 
@@ -51,4 +51,4 @@ def compute_signature(url: str, params: dict[str, str]) -> str:
     the request-handling path."""
     settings = get_settings()
     validator = RequestValidator(settings.twilio_auth_token.get_secret_value())
-    return validator.compute_signature(url, params)
+    return str(validator.compute_signature(url, params))

@@ -76,9 +76,7 @@ class MarkEvent:
     name: str
 
 
-InboundEvent = (
-    ConnectedEvent | StartEvent | MediaEvent | DtmfEvent | StopEvent | MarkEvent
-)
+InboundEvent = ConnectedEvent | StartEvent | MediaEvent | DtmfEvent | StopEvent | MarkEvent
 
 
 class UnknownEventError(ValueError):

@@ -71,7 +71,9 @@ def test_parse_media_decodes_base64() -> None:
 
 def test_parse_dtmf() -> None:
     evt = parse_inbound(
-        json.dumps({"event": "dtmf", "streamSid": "MZxxx", "dtmf": {"digit": "5", "track": "inbound"}})
+        json.dumps(
+            {"event": "dtmf", "streamSid": "MZxxx", "dtmf": {"digit": "5", "track": "inbound"}}
+        )
     )
     assert isinstance(evt, DtmfEvent)
     assert evt.digit == "5"

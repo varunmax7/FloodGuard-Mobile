@@ -7,6 +7,7 @@ the Pipecat pipeline; the socket-level plumbing stays here."""
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import math
 import struct
 
@@ -48,9 +49,7 @@ def _generate_beep_pcm16(freq_hz: int = 660, duration_ms: int = 400) -> bytes:
 _GREETING_ULAW: bytes = pcm16_to_ulaw(_generate_beep_pcm16())
 
 
-async def _send_ulaw_paced(
-    ws: WebSocket, stream_sid: str, ulaw: bytes, frame_ms: int = 20
-) -> None:
+async def _send_ulaw_paced(ws: WebSocket, stream_sid: str, ulaw: bytes, frame_ms: int = 20) -> None:
     """Send μ-law bytes as 20 ms frames, paced in real time. Twilio does
     not require pacing, but pacing prevents us from flooding their
     buffer and enables clean barge-in interruption later."""
@@ -125,10 +124,8 @@ async def media_ws(ws: WebSocket) -> None:
         )
     finally:
         if stream_sid is not None:
-            try:
-                # A trailing `clear` on close prevents any queued audio
-                # from continuing to play if Twilio holds the leg open
-                # briefly after our WS closes.
+            # A trailing `clear` on close prevents any queued audio from
+            # continuing to play if Twilio holds the leg open briefly
+            # after our WS closes. Best-effort — the WS may already be gone.
+            with contextlib.suppress(Exception):
                 await ws.send_text(build_clear(stream_sid))
-            except Exception:
-                pass  # noqa: S110 — WS already gone; best-effort close

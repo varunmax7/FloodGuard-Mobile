@@ -14,7 +14,6 @@ from fastapi.testclient import TestClient
 from fg_voice.persistence.session_store import InMemorySessionStore
 from fg_voice.telephony.twilio_signature import compute_signature
 
-
 TOKEN = "test-auth-token"
 INBOUND_PARAMS = {
     "CallSid": "CA00000000000000000000000000000001",
@@ -55,7 +54,7 @@ def test_inbound_valid_signature_returns_twiml(client: TestClient) -> None:
     r = _post(client, "/voice/inbound", INBOUND_PARAMS, sign_url)
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("application/xml")
-    root = fromstring(r.content[r.content.index(b"<Response"):])
+    root = fromstring(r.content[r.content.index(b"<Response") :])
     stream = root.find("Connect/Stream")
     assert stream is not None
     assert stream.attrib["url"] == "wss://voice.floodguard.in/ws/media"

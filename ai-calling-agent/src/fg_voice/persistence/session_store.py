@@ -57,7 +57,7 @@ class SessionStore(Protocol):
 
 
 class RedisSessionStore:
-    def __init__(self, client: redis.Redis) -> None:
+    def __init__(self, client: redis.Redis[str]) -> None:
         self._r = client
 
     def _key(self, call_sid: str) -> str:
@@ -88,13 +88,10 @@ class RedisSessionStore:
         outcome: str,
     ) -> None:
         raw = await self._r.get(self._key(call_sid))
-        if raw is None:
-            # /voice/status can arrive before /voice/inbound in rare
-            # reorderings; write a bare finalisation row so we still
-            # have the outcome for post-call reconciliation.
-            payload = {"call_sid": call_sid}
-        else:
-            payload = json.loads(raw)
+        # /voice/status can arrive before /voice/inbound in rare
+        # reorderings; write a bare finalisation row so we still have
+        # the outcome for post-call reconciliation.
+        payload = {"call_sid": call_sid} if raw is None else json.loads(raw)
         payload["ended_at"] = datetime.now(UTC).isoformat()
         payload["duration_sec"] = duration_sec
         payload["outcome"] = outcome

@@ -10,11 +10,12 @@ from __future__ import annotations
 import struct
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from fg_voice.audio.codec import (
-    TWILIO_FRAME_BYTES_ULAW,
     TWILIO_FRAME_BYTES_PCM16,
+    TWILIO_FRAME_BYTES_ULAW,
     TWILIO_FRAME_SAMPLES,
     frame_ulaw,
     pcm16_to_ulaw,

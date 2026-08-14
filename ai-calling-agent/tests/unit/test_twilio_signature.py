@@ -14,7 +14,6 @@ from fg_voice.telephony.twilio_signature import (
     verify_twilio_signature,
 )
 
-
 TOKEN = "test-auth-token-do-not-use-outside-tests"
 URL = "https://voice.floodguard.in/voice/inbound"
 PARAMS = {
