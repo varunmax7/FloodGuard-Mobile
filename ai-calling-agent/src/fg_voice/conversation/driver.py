@@ -30,6 +30,12 @@ from fg_voice.conversation.policies import (
     reprompt_id_for,
 )
 from fg_voice.conversation.prompt_bank import PromptBank
+from fg_voice.conversation.report_sink import (
+    NoopReportSink,
+    ReportSink,
+    RetryableWriteError,
+    format_short_ref,
+)
 from fg_voice.conversation.safety import check_transcript
 from fg_voice.conversation.state import (
     TERMINAL_NODES,
@@ -108,10 +114,16 @@ class TurnDriver:
         graph: Graph,
         prompt_bank: PromptBank,
         state_store: CallStateStore,
+        report_sink: ReportSink | None = None,
     ) -> None:
         self.graph = graph
         self.prompt_bank = prompt_bank
         self.state_store = state_store
+        # NoopReportSink keeps the terminal `submitted` prompt render-
+        # able in tests that don't care about persistence — a real
+        # deployment always injects `SqlReportSink`. See §2.3: even a
+        # sink failure must not surface to the caller.
+        self.report_sink: ReportSink = report_sink or NoopReportSink()
 
     # ─── Public API ──────────────────────────────────────────────────
 
@@ -175,6 +187,13 @@ class TurnDriver:
                 )
 
             if node.is_machine:
+                # Entering the SUBMIT machine node is the moment the
+                # report is written. Do it here (once), stash the
+                # short_ref on the CallState, and continue — the next
+                # loop iteration will land on SUBMITTED where the
+                # `submitted` prompt renders {short_ref}.
+                if state.current_node is NodeId.SUBMIT and state.short_ref is None:
+                    await self._write_report(state)
                 state.current_node = _first_matching_edge(node, state)
                 continue
 
@@ -275,6 +294,26 @@ class TurnDriver:
             state.current_node = NodeId.TIMEOUT_EXIT
             state.attempt = 0
 
+    async def _write_report(self, state: CallState) -> None:
+        """Persist the report and stash short_ref on the state. §2.3
+        insists the caller never hears "failed" — a RetryableWriteError
+        means the outbox row landed but downstream is retrying, so we
+        still speak the short_ref we got back. Any other error also
+        gets swallowed: we fall back to the deterministic short_ref so
+        the terminal prompt still renders."""
+        try:
+            submitted = await self.report_sink.write(state)
+            state.short_ref = submitted.short_ref
+        except RetryableWriteError:
+            # Sink signalled: outbox accepted, relay will retry.
+            # short_ref should have been set on the exception path in
+            # a well-behaved sink; if not, fall back.
+            state.short_ref = state.short_ref or format_short_ref(state.report_id.int)
+        except Exception:
+            # Hard failure — never surface to the caller. Log-and-fallback
+            # so the terminal prompt still has something to speak.
+            state.short_ref = format_short_ref(state.report_id.int)
+
     # ─── Utilities ──────────────────────────────────────────────────
 
     def _is_terminal(self, node: Node) -> bool:
@@ -305,7 +344,11 @@ class TurnDriver:
             sv = state.slots.get(NODE_SLOT_MAP["severity"])
             subs["severity_spoken"] = _spoken_severity(sv.value if sv else "moderate")
         if "short_ref" in prompt.variables:
-            subs["short_ref"] = _short_ref_for(state)
+            # If SUBMIT wrote a report we prefer the DB-minted short_ref;
+            # otherwise fall back to the deterministic derivation from
+            # report_id so the safety/tripwire path (which never enters
+            # SUBMIT) still has something to speak.
+            subs["short_ref"] = state.short_ref or format_short_ref(state.report_id.int)
         if "location_candidate" in prompt.variables:
             loc = state.slots.get(NODE_SLOT_MAP["location"])
             subs["location_candidate"] = str(loc.value) if loc else "that location"
@@ -348,21 +391,6 @@ def _spoken_hazard(value: object) -> str:
 
 def _spoken_severity(value: object) -> str:
     return _SEVERITY_SPOKEN.get(str(value), "moderate")
-
-
-def _short_ref_for(state: CallState) -> str:
-    """Deterministic FG-XXXX from the report_id. Unambiguous alphabet
-    (no 0/O/1/I) so callers reading it back over a noisy line don't
-    trip on look-alikes. The real generator lands in P5 with the
-    reports table; this is enough to render the terminal prompt in
-    Gather mode."""
-    alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
-    n = state.report_id.int
-    out = []
-    for _ in range(4):
-        out.append(alphabet[n % len(alphabet)])
-        n //= len(alphabet)
-    return "FG-" + "".join(out)
 
 
 def _first_matching_edge(node: Node, state: CallState) -> NodeId:

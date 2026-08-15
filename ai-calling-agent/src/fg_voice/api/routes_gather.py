@@ -39,6 +39,8 @@ from fg_voice.conversation.driver import (
 )
 from fg_voice.conversation.graph import build_graph
 from fg_voice.conversation.prompt_bank import PromptBank, load_prompt_bank
+from fg_voice.conversation.report_sink import ReportSink
+from fg_voice.conversation.sql_report_sink import SqlReportSink
 from fg_voice.conversation.state_store import get_call_state_store
 from fg_voice.obs.logging import get_logger
 from fg_voice.persistence.session_store import get_session_store
@@ -55,6 +57,13 @@ _prompt_bank_loader = load_prompt_bank
 _graph_builder = build_graph
 
 
+def _default_report_sink() -> ReportSink:
+    return SqlReportSink()
+
+
+_report_sink_provider = _default_report_sink
+
+
 NEXT_ACTION_PATH = "/voice/gather/next"
 
 
@@ -63,6 +72,7 @@ async def _make_driver() -> TurnDriver:
         graph=_graph_builder(),
         prompt_bank=_prompt_bank_loader(),
         state_store=await _call_state_store_provider(),
+        report_sink=_report_sink_provider(),
     )
 
 

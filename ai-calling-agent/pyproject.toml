@@ -66,6 +66,9 @@ dev = [
     "pip-audit>=2.7",
     "types-pyyaml>=6.0",
     "types-redis>=4.6",
+    # Async SQLite driver — used by tests so persistence covers can run
+    # without a real Postgres. Production uses asyncpg per config.py.
+    "aiosqlite>=0.20",
 ]
 
 [build-system]

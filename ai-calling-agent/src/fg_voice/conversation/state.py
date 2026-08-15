@@ -143,6 +143,10 @@ class CallState(BaseModel):
     # Set on entering EMERGENCY_REDIRECT so the graph can restore the
     # slot-collection node the caller was on. None until first tripwire.
     resume_after_emergency: NodeId | None = None
+    # Populated when the driver writes the report on entering SUBMIT.
+    # Consumed by the terminal `submitted` prompt so the caller hears
+    # a real DB-minted reference, not a client-side placeholder.
+    short_ref: str | None = None
 
     def set_slot(self, slot: Slot, value: SlotValue) -> None:
         self.slots[slot] = value
