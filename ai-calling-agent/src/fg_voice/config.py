@@ -105,6 +105,11 @@ class Settings(BaseSettings):
     no_input_timeout_ms: int = Field(default=6000, ge=1000, le=30_000)
     max_attempts_per_slot: int = Field(default=3, ge=1, le=5)
     emergency_number: str = "112"
+    # RUNNER_MODE=true → /voice/inbound redirects to the Gather-based
+    # HTTP flow instead of the Media Streams path. Provides a keyless
+    # bring-up path for the P2 exit gate (Twilio does the STT itself);
+    # Media Streams comes back for P3 once Deepgram is wired.
+    runner_mode: bool = False
 
     # ── Ops ──────────────────────────────────────────────────
     alert_sns_topic_arn: str | None = None

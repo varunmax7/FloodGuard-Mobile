@@ -59,6 +59,75 @@ def fallback_twiml(sms_link: str | None = None) -> bytes:
     return b'<?xml version="1.0" encoding="UTF-8"?>' + bytes(tostring(root, encoding="utf-8"))
 
 
+def gather_redirect_twiml(gather_start_path: str) -> bytes:
+    """Response to `/voice/inbound` when RUNNER_MODE is on: skip the
+    Media Streams `<Connect>` and jump straight into the Gather flow.
+    A `<Redirect>` is used rather than embedding TwiML inline so the
+    gather routes remain the single source of prompt sequencing —
+    including consent, which must play before ask_intent."""
+    root = Element("Response")
+    redirect = SubElement(root, "Redirect", {"method": "POST"})
+    redirect.text = gather_start_path
+    return b'<?xml version="1.0" encoding="UTF-8"?>' + bytes(tostring(root, encoding="utf-8"))
+
+
+def render_gather_step(
+    say_texts: list[str],
+    *,
+    gather_action: str | None,
+    dtmf_map: dict[str, str] | None,
+    voice: str = "Polly.Aditi",
+    language: str = "en-IN",
+    speech_timeout: str = "auto",
+) -> bytes:
+    """Turn a driver `TurnStepResult` into TwiML.
+
+    - `say_texts` is the ordered list of prompt texts (already rendered
+      from the prompt bank). All but the last are plain `<Say>`; the
+      last is either wrapped in a `<Gather>` (when `gather_action` is
+      set) or followed by a `<Hangup>`.
+    - `dtmf_map` sets `numDigits="1"` when non-empty so a single press
+      completes the Gather immediately. Speech-only Gathers omit it.
+    - No caller-facing text is generated here; texts are pre-rendered
+      by the caller of this function via the prompt bank (§2.2)."""
+    root = Element("Response")
+    if not say_texts:
+        SubElement(root, "Hangup")
+        return b'<?xml version="1.0" encoding="UTF-8"?>' + bytes(tostring(root, encoding="utf-8"))
+
+    leading = say_texts[:-1]
+    trailing = say_texts[-1]
+
+    for text in leading:
+        say = SubElement(root, "Say", {"voice": voice, "language": language})
+        say.text = text
+
+    if gather_action is None:
+        say = SubElement(root, "Say", {"voice": voice, "language": language})
+        say.text = trailing
+        SubElement(root, "Hangup")
+    else:
+        gather_attrs: dict[str, str] = {
+            "input": "speech dtmf",
+            "action": gather_action,
+            "method": "POST",
+            "language": language,
+            "speechTimeout": speech_timeout,
+            "actionOnEmptyResult": "true",
+        }
+        if dtmf_map:
+            gather_attrs["numDigits"] = "1"
+        gather = SubElement(root, "Gather", gather_attrs)
+        say = SubElement(gather, "Say", {"voice": voice, "language": language})
+        say.text = trailing
+        # Redirect on no-input timeout so we re-enter the state machine
+        # with a timeout event rather than dropping the call.
+        redirect = SubElement(root, "Redirect", {"method": "POST"})
+        redirect.text = gather_action
+
+    return b'<?xml version="1.0" encoding="UTF-8"?>' + bytes(tostring(root, encoding="utf-8"))
+
+
 def fatal_hangup_twiml(reason_code: str = "internal_error") -> bytes:
     """Used for hard failures (missing env, DB unreachable at boot). A
     call never leaks a raw stacktrace or a Twilio default error to the

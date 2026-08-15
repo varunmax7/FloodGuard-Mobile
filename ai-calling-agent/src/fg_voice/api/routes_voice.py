@@ -18,7 +18,11 @@ from fg_voice.telephony.twilio_signature import (
     InvalidTwilioSignatureError,
     verify_twilio_signature,
 )
-from fg_voice.telephony.twilio_twiml import connect_stream_twiml, fallback_twiml
+from fg_voice.telephony.twilio_twiml import (
+    connect_stream_twiml,
+    fallback_twiml,
+    gather_redirect_twiml,
+)
 from fg_voice.utils.hashing import hash_msisdn
 
 log = get_logger(__name__)
@@ -86,7 +90,14 @@ async def inbound(
         report_id=report_id,
         caller_hash=caller_hash[:12] + "…",
         from_country=params.get("FromCountry"),
+        runner_mode=settings.runner_mode,
     )
+
+    # Feature-flagged: when RUNNER_MODE is on we hand off to the
+    # Gather-based flow (P2.6). The Media Streams path is unchanged.
+    if settings.runner_mode:
+        body = gather_redirect_twiml("/voice/gather/start")
+        return Response(content=body, media_type="application/xml")
 
     wss = f"{settings.public_wss_base}/ws/media"
     body = connect_stream_twiml(

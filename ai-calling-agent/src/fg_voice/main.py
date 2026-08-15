@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from fg_voice import __version__
+from fg_voice.api.routes_gather import router as gather_router
 from fg_voice.api.routes_health import router as health_router
 from fg_voice.api.routes_media import router as media_router
 from fg_voice.api.routes_voice import router as voice_router
@@ -46,3 +47,4 @@ app = FastAPI(
 app.include_router(health_router)
 app.include_router(voice_router)
 app.include_router(media_router)
+app.include_router(gather_router)

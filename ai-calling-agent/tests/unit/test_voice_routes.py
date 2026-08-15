@@ -113,3 +113,35 @@ def test_fallback_returns_twiml_even_without_signature(client: TestClient) -> No
     assert r.status_code == 200
     assert b"<Response>" in r.content
     assert b"<Hangup" in r.content
+
+
+def test_inbound_runner_mode_redirects_to_gather(
+    dev_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When RUNNER_MODE=true the inbound webhook returns a `<Redirect>`
+    into the Gather flow instead of the Media Streams TwiML."""
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", TOKEN)
+    monkeypatch.setenv("PUBLIC_WSS_BASE", "wss://voice.floodguard.in")
+    monkeypatch.setenv("CALLER_HASH_PEPPER", "test-pepper")
+    monkeypatch.setenv("RUNNER_MODE", "true")
+
+    from fg_voice.api import routes_voice
+    from fg_voice.main import app
+
+    store = InMemorySessionStore()
+
+    async def _override() -> InMemorySessionStore:
+        return store
+
+    monkeypatch.setattr(routes_voice, "_session_store_provider", _override)
+    tc = TestClient(app)
+
+    sign_url = "http://testserver/voice/inbound"
+    r = _post(tc, "/voice/inbound", INBOUND_PARAMS, sign_url)
+    assert r.status_code == 200
+    root = fromstring(r.content[r.content.index(b"<Response") :])
+    redirect = root.find("Redirect")
+    assert redirect is not None
+    assert redirect.text == "/voice/gather/start"
+    # Media Streams TwiML must NOT be present.
+    assert root.find("Connect/Stream") is None
