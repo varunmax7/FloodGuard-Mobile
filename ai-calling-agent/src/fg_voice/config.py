@@ -128,6 +128,14 @@ class Settings(BaseSettings):
     alerts_enabled: bool = False
     alert_webhook_url: str = ""
     alert_webhook_timeout_sec: float = Field(default=5.0, ge=0.5, le=30.0)
+    # ENRICHMENT_ENABLED=true adds the P6 enrichment dispatcher to the
+    # relay chain — every `report.submitted` outbox row triggers the
+    # enrichment DAG (assemble → deep_extract → geocode → dedupe →
+    # score → persist). Off by default because the LLM extractor, RAG
+    # geocoder, and dedupe strategy all default to No-Op — so enabling
+    # it in prod with no impls injected would just burn cycles doing
+    # nothing. Flip on once real impls are wired in `main.py`.
+    enrichment_enabled: bool = False
 
     # Admin API key for the /api/v1/reports* endpoints. Empty means
     # auth is disabled (dev bypass); production boot logs a warning

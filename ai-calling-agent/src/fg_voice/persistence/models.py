@@ -61,7 +61,14 @@ class Report(Base):
     # P5 write is a single INSERT with no side-tables required.
     location_resolved: Mapped[str | None] = mapped_column(String(500))
     dedupe_group_id: Mapped[str | None] = mapped_column(String(64))
+    # P6 score.py: heuristic in [0, 100]. Nullable pre-enrichment;
+    # populated on the enrichment flow's persist step.
+    confidence_score: Mapped[int | None] = mapped_column(Integer)
     priority_score: Mapped[int | None] = mapped_column(Integer)
+    # Set by the enrichment flow's persist step. NULL until the flow
+    # runs; a re-run overwrites with the new run's timestamp so ops
+    # can see whether the row was recently re-enriched.
+    enriched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     flags: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(String(24), default="pending_enrichment")

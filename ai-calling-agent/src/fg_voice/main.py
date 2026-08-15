@@ -19,6 +19,7 @@ from fg_voice.api.routes_media import router as media_router
 from fg_voice.api.routes_reports import router as reports_router
 from fg_voice.api.routes_voice import router as voice_router
 from fg_voice.config import get_settings
+from fg_voice.enrichment import EnrichmentDispatcher, EnrichmentFlow
 from fg_voice.obs.logging import configure_logging, get_logger
 from fg_voice.persistence.alerts import (
     AlertBackend,
@@ -115,6 +116,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     )
                 )
             dispatchers.append(AlertDispatcher(backends=backends))
+        if settings.enrichment_enabled:
+            # Enrichment runs LAST in the chain so a slow LLM call
+            # can't delay the fast-path SSE/CSV/alert side-effects.
+            # The flow ships with No-Op extractor/geocoder/dedupe —
+            # real impls swap in here when P4 RAG + LLM adapter land.
+            dispatchers.append(EnrichmentDispatcher(flow=EnrichmentFlow()))
         dispatcher: Dispatcher = (
             dispatchers[0] if len(dispatchers) == 1 else ChainDispatcher(dispatchers)
         )
