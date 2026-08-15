@@ -129,6 +129,7 @@ def row_from_report(report: Report, *, agent_version: str) -> dict[str, str]:
         "severity": report.severity,
         "water_depth_cm": report.water_depth_cm,
         "description": report.description,
+        "description_clean": report.description_clean,
         "location_raw": report.location_raw,
         "flags": report.flags,
         "call_sid": report.call_sid,
@@ -154,7 +155,7 @@ def _row_from_dict(payload: dict[str, Any], *, agent_version: str) -> dict[str, 
         "hazard_type": _s(payload.get("hazard_type")),
         "hazard_type_spoken": "",  # P6 enrichment
         "description_raw": _clean_text(payload.get("description")),
-        "description_clean": "",  # P6 enrichment (PII redaction)
+        "description_clean": _clean_text(payload.get("description_clean")),
         "location_text": _s(payload.get("location_raw")),
         "resolved_place": "",  # P4 RAG
         "district": "",  # P4 RAG

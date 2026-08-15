@@ -35,6 +35,7 @@ from fg_voice.persistence.db import get_session_maker
 from fg_voice.persistence.models import Report
 from fg_voice.persistence.outbox import OutboxEventType
 from fg_voice.persistence.outbox import append as append_outbox
+from fg_voice.utils.redact import redact_pii
 
 
 class SqlReportSink(ReportSink):
@@ -75,7 +76,11 @@ class SqlReportSink(ReportSink):
                     "hazard_type": row.hazard_type,
                     "severity": row.severity,
                     "water_depth_cm": row.water_depth_cm,
+                    # `description` is the raw caller utterance (admin
+                    # eyes only); `description_clean` is what SSE / CSV
+                    # / webhook consumers should surface.
                     "description": row.description,
+                    "description_clean": row.description_clean,
                     "location_raw": row.location_raw,
                     "flags": list(state.flags),
                     "created_at": row.created_at.isoformat(),
@@ -93,7 +98,13 @@ class SqlReportSink(ReportSink):
 def _build_row(state: CallState, short_ref: str) -> Report:
     """Project the CallState onto the Report columns. Slots come from
     the driver's collected values; unset slots stay NULL for P6 to
-    fill in (never fabricated here)."""
+    fill in (never fabricated here).
+
+    `description_clean` is the PII-scrubbed twin of `description` —
+    computed synchronously at write time so every outbound artifact
+    (CSV, SSE, webhook alert) has a safe field to consume without
+    waiting on an async enrichment step."""
+    description_raw = _slot_str(state, Slot.DESCRIPTION)
     return Report(
         report_id=state.report_id,
         short_ref=short_ref,
@@ -103,7 +114,8 @@ def _build_row(state: CallState, short_ref: str) -> Report:
         hazard_type=_slot_str(state, Slot.HAZARD_TYPE),
         severity=_slot_str(state, Slot.SEVERITY),
         water_depth_cm=_slot_int(state, Slot.WATER_DEPTH_CM),
-        description=_slot_str(state, Slot.DESCRIPTION),
+        description=description_raw,
+        description_clean=redact_pii(description_raw) if description_raw else None,
         location_raw=_slot_str(state, Slot.LOCATION),
         flags={f: True for f in state.flags} if state.flags else None,
         status="pending_enrichment",

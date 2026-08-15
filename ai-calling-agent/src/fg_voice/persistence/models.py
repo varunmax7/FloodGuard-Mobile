@@ -50,6 +50,11 @@ class Report(Base):
     severity: Mapped[str | None] = mapped_column(String(16))
     water_depth_cm: Mapped[int | None] = mapped_column(Integer)
     description: Mapped[str | None] = mapped_column(String(2000))
+    # PII-scrubbed twin of `description`. Populated synchronously by
+    # SqlReportSink at write time (regex-based). Consumed by every
+    # outbound artifact (CSV row, alert body, SSE frame) — raw
+    # `description` stays on the row for admin review + P6 deep NER.
+    description_clean: Mapped[str | None] = mapped_column(String(2000))
     location_raw: Mapped[str | None] = mapped_column(String(500))
 
     # Enrichment output (populated by P6). Nullable on creation so the

@@ -94,6 +94,7 @@ class ReportOut(BaseModel):
     severity: str | None
     water_depth_cm: int | None
     description: str | None
+    description_clean: str | None
     location_raw: str | None
     location_resolved: str | None
     dedupe_group_id: str | None

@@ -150,7 +150,12 @@ def _has_flag(payload: dict[str, Any], flag: str) -> bool:
 def _build_alert(entry: OutboxEntry, payload: dict[str, Any]) -> dict[str, Any]:
     """Minimal payload that every backend understands. Ops dashboards
     can rehydrate the full report by calling GET /reports/{short_ref}
-    (that endpoint lands with the admin console in P5-plus)."""
+    (that endpoint lands with the admin console in P5-plus).
+
+    Description is deliberately the PII-scrubbed `description_clean`
+    (not the raw caller utterance) — Slack/PagerDuty payloads leave
+    the trust boundary, and a full-text alert body can end up on
+    unauthorised operators' phones."""
     return {
         "event_type": entry.event_type,
         "outbox_id": entry.id,
@@ -160,6 +165,7 @@ def _build_alert(entry: OutboxEntry, payload: dict[str, Any]) -> dict[str, Any]:
         "hazard_type": payload.get("hazard_type"),
         "severity": payload.get("severity"),
         "water_depth_cm": payload.get("water_depth_cm"),
+        "description_clean": payload.get("description_clean"),
         "location_raw": payload.get("location_raw"),
         "life_safety_flag": _has_flag(payload, "life_safety"),
         "trigger": ("life_safety" if _has_flag(payload, "life_safety") else "severity_extreme"),
