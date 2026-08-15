@@ -116,6 +116,11 @@ class Settings(BaseSettings):
     # without any extra config.
     relay_enabled: bool = True
     relay_poll_interval_sec: float = Field(default=1.0, ge=0.05, le=60.0)
+    # CSV_ENABLED=true adds the CSV projector to the relay's dispatch
+    # chain. Off by default so tests + CI don't accumulate files on
+    # disk; on in staging/prod where downstream tooling consumes it.
+    csv_enabled: bool = False
+    csv_path: Path = Path("./data/reports.csv")
 
     # ── Ops ──────────────────────────────────────────────────
     alert_sns_topic_arn: str | None = None

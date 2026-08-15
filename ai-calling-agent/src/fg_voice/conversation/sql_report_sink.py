@@ -69,12 +69,16 @@ class SqlReportSink(ReportSink):
                 payload={
                     "report_id": str(row.report_id),
                     "short_ref": row.short_ref,
+                    "source": row.source,
                     "call_sid": row.call_sid,
+                    "caller_hash": row.caller_hash,
                     "hazard_type": row.hazard_type,
                     "severity": row.severity,
                     "water_depth_cm": row.water_depth_cm,
+                    "description": row.description,
                     "location_raw": row.location_raw,
                     "flags": list(state.flags),
+                    "created_at": row.created_at.isoformat(),
                 },
                 report_id=row.report_id,
             )

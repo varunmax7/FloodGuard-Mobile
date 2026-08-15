@@ -21,8 +21,9 @@ from fg_voice.api.routes_voice import router as voice_router
 from fg_voice.config import get_settings
 from fg_voice.obs.logging import configure_logging, get_logger
 from fg_voice.persistence.broker import InProcessBroker
-from fg_voice.persistence.dispatchers import PubSubDispatcher
-from fg_voice.persistence.relay import LogDispatcher, OutboxRelay
+from fg_voice.persistence.csv_projector import CsvProjectorDispatcher
+from fg_voice.persistence.dispatchers import ChainDispatcher, PubSubDispatcher
+from fg_voice.persistence.relay import Dispatcher, LogDispatcher, OutboxRelay
 
 log = get_logger(__name__)
 
@@ -63,11 +64,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if settings.relay_enabled:
         _broker = InProcessBroker()
         routes_reports.set_broker(_broker)
-        # PubSubDispatcher fans events into the SSE broker; LogDispatcher
-        # keeps every event in the JSON logs for audit even when there
-        # are no SSE subscribers. Order matters — if pubsub raises, log
-        # still runs, but the relay retries the row.
-        dispatcher = PubSubDispatcher(broker=_broker)
+        # PubSubDispatcher fans events into the SSE broker for live
+        # consumers. CsvProjectorDispatcher optionally lands a row in
+        # a shared CSV file (§12.3 fast path). Composed via
+        # ChainDispatcher so both run per event; if either raises the
+        # relay bumps retry_count and re-attempts.
+        dispatchers: list[Dispatcher] = [PubSubDispatcher(broker=_broker)]
+        if settings.csv_enabled:
+            dispatchers.append(
+                CsvProjectorDispatcher(
+                    path=settings.csv_path,
+                    agent_version=settings.fg_agent_version,
+                )
+            )
+        dispatcher: Dispatcher = (
+            dispatchers[0] if len(dispatchers) == 1 else ChainDispatcher(dispatchers)
+        )
         relay = OutboxRelay(
             dispatcher=dispatcher,
             poll_interval_sec=settings.relay_poll_interval_sec,
