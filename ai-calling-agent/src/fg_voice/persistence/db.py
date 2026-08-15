@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy.ext.asyncio import (
@@ -30,6 +31,13 @@ class Base(DeclarativeBase):
 
 _engine: AsyncEngine | None = None
 _session_maker: async_sessionmaker[AsyncSession] | None = None
+
+# Resolved once at import so `run_migrations_at_boot` doesn't do a
+# blocking filesystem call inside an async function (ASYNC240). The
+# app container's WORKDIR isn't necessarily where alembic.ini lives —
+# anchor at the repo root.
+_ALEMBIC_INI: Path = Path(__file__).resolve().parents[3] / "alembic.ini"
+_ALEMBIC_DIR: Path = Path(__file__).resolve().parents[3] / "alembic"
 
 
 def _make_engine(database_url: str) -> AsyncEngine:
@@ -98,6 +106,40 @@ async def create_all(engine: AsyncEngine | None = None) -> None:
         await conn.run_sync(_create)
 
 
+async def run_migrations_at_boot() -> str:
+    """Apply pending Alembic migrations, returning the resulting head
+    revision id. Runs `alembic upgrade head` in `asyncio.to_thread` —
+    Alembic's env.py uses its own internal `asyncio.run()` so calling
+    it from a running event loop would `RuntimeError`.
+
+    Idempotent: applying an already-applied revision is a no-op in
+    Alembic. Safe to call every boot.
+
+    Multi-node deploy caveat: N pods calling this at the same time
+    race on the version table. Modern Alembic serialises via a table
+    lock so at worst you get one waiter per pod, but the safer
+    pattern for prod is to run migrations from a separate init
+    container / deploy step. See MIGRATE_ON_BOOT docstring in
+    config.py."""
+    import asyncio
+
+    from alembic import command
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    cfg = Config(str(_ALEMBIC_INI))
+    cfg.set_main_option("script_location", str(_ALEMBIC_DIR))
+    cfg.set_main_option("sqlalchemy.url", get_settings().database_url)
+
+    await asyncio.to_thread(command.upgrade, cfg, "head")
+
+    # Report which revision we landed on so ops can correlate a
+    # startup log with a code deploy.
+    script_dir = ScriptDirectory.from_config(cfg)
+    head = script_dir.get_current_head() or "unknown"
+    return head
+
+
 __all__ = [
     "AsyncSession",
     "Base",
@@ -106,5 +148,6 @@ __all__ = [
     "get_session_maker",
     "override_engine",
     "reset_engine",
+    "run_migrations_at_boot",
     "session_scope",
 ]

@@ -133,6 +133,12 @@ class Settings(BaseSettings):
     # auth is disabled (dev bypass); production boot logs a warning
     # AND `require_production_secrets` refuses to boot without it set.
     admin_api_key: SecretStr = SecretStr("")
+    # MIGRATE_ON_BOOT=true runs `alembic upgrade head` in main.py's
+    # lifespan before the relay starts. Off by default because
+    # multi-node prod deploys typically apply schema in an init
+    # container / deploy step (avoids N pods racing on the same
+    # upgrade). Dev + single-node deploys can flip it on.
+    migrate_on_boot: bool = False
 
     # ── Ops ──────────────────────────────────────────────────
     alert_sns_topic_arn: str | None = None

@@ -28,6 +28,7 @@ from fg_voice.persistence.alerts import (
 )
 from fg_voice.persistence.broker import InProcessBroker
 from fg_voice.persistence.csv_projector import CsvProjectorDispatcher
+from fg_voice.persistence.db import run_migrations_at_boot
 from fg_voice.persistence.dispatchers import ChainDispatcher, PubSubDispatcher
 from fg_voice.persistence.relay import Dispatcher, LogDispatcher, OutboxRelay
 
@@ -69,6 +70,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "fg_voice.admin_auth_disabled",
             note="ADMIN_API_KEY is empty; /api/v1/reports* are unauthenticated",
         )
+
+    if settings.migrate_on_boot:
+        # Run before the relay starts so the relay's first drain never
+        # hits a missing table. Any migration failure aborts the boot
+        # (the lifespan re-raises), which is the right behaviour —
+        # serving traffic against a stale schema silently corrupts data.
+        try:
+            revision = await run_migrations_at_boot()
+            log.info("fg_voice.migrations.applied", revision=revision)
+        except Exception as exc:
+            log.exception("fg_voice.migrations.failed", error=str(exc))
+            raise
 
     # Clear any leftover state from a previous lifespan entry so a
     # re-entry (mostly tests) doesn't inherit stale task references.
