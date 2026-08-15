@@ -289,13 +289,16 @@ def build_graph() -> Graph:
         ),
     )
 
+    # START_OVER plays its own reassurance notice before re-entering
+    # the hazard-collection loop, so it's a prompted node (like CONSENT)
+    # rather than a machine node — the runner must play the audio, then
+    # advance unconditionally via the extractor=NONE fast path.
     nodes[NodeId.START_OVER] = Node(
         id=NodeId.START_OVER,
         prompt_id="start_over",
         slot=None,
         extractor=ExtractorId.NONE,
         transitions=(Edge(_always, NodeId.ASK_HAZARD_TYPE, "restart→ask_hazard"),),
-        is_machine=True,
     )
 
     nodes[NodeId.SUBMIT] = _machine(NodeId.SUBMIT, NodeId.SUBMITTED, "submit→submitted")
