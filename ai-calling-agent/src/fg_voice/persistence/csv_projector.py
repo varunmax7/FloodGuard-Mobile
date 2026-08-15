@@ -92,18 +92,30 @@ class CsvProjectorDispatcher:
     agent_version: str = "dev-local"
 
     async def dispatch(self, entry: OutboxEntry) -> None:
-        # We only project report-lifecycle events into the CSV. Other
-        # outbox event types (moderation, alerts) live in their own
-        # sinks — trying to shoehorn everything into one CSV loses
-        # the audit story.
-        if not _is_report_event(entry.event_type):
+        # Only `report.submitted` writes a CSV row. Enrichment updates
+        # (`report.enriched`) are DELIBERATELY skipped here:
+        #
+        #   1. The at-write-time CSV contract is "one row per report,
+        #      appended at call-end". District officers open these
+        #      files in Excel and depend on that shape — a second row
+        #      per report_id from enrichment would look like a
+        #      duplicate incident.
+        #   2. The enriched payload carries an updated snapshot, but
+        #      updating the existing row in place needs a full-file
+        #      rewrite under a leader lock (§12.3). That mode lands
+        #      with the S3-sync work in P7; today the CSV is a
+        #      submit-time artifact and enrichment updates surface via
+        #      SSE + the JSON API instead.
+        #
+        # Other future report.* events (moderation, dedup-merge) will
+        # need to declare their CSV posture explicitly here too.
+        if entry.event_type != _EVENT_REPORT_SUBMITTED:
             return
         row = _build_row(entry, agent_version=self.agent_version)
         _append_row(self.path, row)
 
 
-def _is_report_event(event_type: str) -> bool:
-    return event_type.startswith("report.")
+_EVENT_REPORT_SUBMITTED = "report.submitted"
 
 
 def _build_row(entry: OutboxEntry, *, agent_version: str) -> dict[str, str]:
