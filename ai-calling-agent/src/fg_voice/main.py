@@ -20,6 +20,12 @@ from fg_voice.api.routes_reports import router as reports_router
 from fg_voice.api.routes_voice import router as voice_router
 from fg_voice.config import get_settings
 from fg_voice.obs.logging import configure_logging, get_logger
+from fg_voice.persistence.alerts import (
+    AlertBackend,
+    AlertDispatcher,
+    LogAlertBackend,
+    WebhookAlertBackend,
+)
 from fg_voice.persistence.broker import InProcessBroker
 from fg_voice.persistence.csv_projector import CsvProjectorDispatcher
 from fg_voice.persistence.dispatchers import ChainDispatcher, PubSubDispatcher
@@ -77,6 +83,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                     agent_version=settings.fg_agent_version,
                 )
             )
+        if settings.alerts_enabled:
+            backends: list[AlertBackend] = [LogAlertBackend()]
+            if settings.alert_webhook_url:
+                backends.append(
+                    WebhookAlertBackend(
+                        url=settings.alert_webhook_url,
+                        timeout_sec=settings.alert_webhook_timeout_sec,
+                    )
+                )
+            dispatchers.append(AlertDispatcher(backends=backends))
         dispatcher: Dispatcher = (
             dispatchers[0] if len(dispatchers) == 1 else ChainDispatcher(dispatchers)
         )

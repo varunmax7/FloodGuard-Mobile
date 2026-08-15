@@ -121,6 +121,13 @@ class Settings(BaseSettings):
     # disk; on in staging/prod where downstream tooling consumes it.
     csv_enabled: bool = False
     csv_path: Path = Path("./data/reports.csv")
+    # ALERTS_ENABLED=true adds the alert fan-out dispatcher. The
+    # log-backend always fires when enabled; the webhook-backend only
+    # when ALERT_WEBHOOK_URL is set. Off by default because a bad
+    # webhook config is worse than no alerts (alerts still hit the log).
+    alerts_enabled: bool = False
+    alert_webhook_url: str = ""
+    alert_webhook_timeout_sec: float = Field(default=5.0, ge=0.5, le=30.0)
 
     # ── Ops ──────────────────────────────────────────────────
     alert_sns_topic_arn: str | None = None
