@@ -18,8 +18,9 @@ from fg_voice.api.routes_health import router as health_router
 from fg_voice.api.routes_media import router as media_router
 from fg_voice.api.routes_reports import router as reports_router
 from fg_voice.api.routes_voice import router as voice_router
-from fg_voice.config import get_settings
+from fg_voice.config import Settings, get_settings
 from fg_voice.enrichment import EnrichmentDispatcher, EnrichmentFlow
+from fg_voice.enrichment.tasks.extract import LLMExtractor
 from fg_voice.obs.logging import configure_logging, get_logger
 from fg_voice.persistence.alerts import (
     AlertBackend,
@@ -119,9 +120,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if settings.enrichment_enabled:
             # Enrichment runs LAST in the chain so a slow LLM call
             # can't delay the fast-path SSE/CSV/alert side-effects.
-            # The flow ships with No-Op extractor/geocoder/dedupe —
-            # real impls swap in here when P4 RAG + LLM adapter land.
-            dispatchers.append(EnrichmentDispatcher(flow=EnrichmentFlow()))
+            # Geocoder + dedupe still default to No-Op — real impls
+            # land with P4 RAG + PostGIS. The extractor swap is
+            # controlled by EXTRACTOR_TYPE (noop | claude); import is
+            # lazy so a `noop` deploy never touches the anthropic SDK.
+            extractor = _build_extractor(settings)
+            flow = EnrichmentFlow(extractor=extractor)
+            dispatchers.append(EnrichmentDispatcher(flow=flow))
+            log.info(
+                "fg_voice.enrichment.wired",
+                extractor=settings.extractor_type,
+                model=(
+                    settings.claude_extractor_model if settings.extractor_type == "claude" else None
+                ),
+            )
         dispatcher: Dispatcher = (
             dispatchers[0] if len(dispatchers) == 1 else ChainDispatcher(dispatchers)
         )
@@ -160,6 +172,36 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.broker = None
         _broker = None
         log.info("fg_voice.stopping")
+
+
+def _build_extractor(settings: Settings) -> LLMExtractor:
+    """Instantiate the LLMExtractor picked by `EXTRACTOR_TYPE`. Lazy
+    imports so a `noop` deploy never loads the anthropic SDK — that
+    keeps the base image small and the No-Op path dependency-free."""
+    if settings.extractor_type == "claude":
+        # Lazy import so `anthropic` stays truly optional at runtime.
+        from fg_voice.enrichment.extractors.claude_llm import (
+            build_claude_extractor,
+        )
+
+        api_key = settings.anthropic_api_key.get_secret_value()
+        if not api_key:
+            # Non-prod bypass — production already errors out in
+            # `require_production_secrets`. Fall back to No-Op with
+            # a loud warning so an operator notices before hitting
+            # the enrichment path.
+            log.warning(
+                "fg_voice.extractor.claude_disabled",
+                reason="ANTHROPIC_API_KEY empty; falling back to NoOpExtractor",
+            )
+            from fg_voice.enrichment.tasks.extract import NoOpExtractor
+
+            return NoOpExtractor()
+        return build_claude_extractor(api_key=api_key, model=settings.claude_extractor_model)
+    # Default path.
+    from fg_voice.enrichment.tasks.extract import NoOpExtractor
+
+    return NoOpExtractor()
 
 
 app = FastAPI(

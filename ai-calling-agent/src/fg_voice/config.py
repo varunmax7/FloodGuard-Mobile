@@ -136,6 +136,19 @@ class Settings(BaseSettings):
     # it in prod with no impls injected would just burn cycles doing
     # nothing. Flip on once real impls are wired in `main.py`.
     enrichment_enabled: bool = False
+    # EXTRACTOR_TYPE selects which LLMExtractor implementation the
+    # enrichment DAG uses for deep_extract. `noop` is the safe default
+    # (no external dep, no API cost); `claude` requires ANTHROPIC_API_KEY
+    # and the optional `[llm]` install extras.
+    extractor_type: Literal["noop", "claude"] = "noop"
+    # Anthropic Claude API key for the ClaudeExtractor. SecretStr so it
+    # doesn't leak in logs or repr(). `require_production_secrets`
+    # rejects a blank key in prod when `extractor_type=claude`.
+    anthropic_api_key: SecretStr = SecretStr("")
+    # Model id for the Claude extractor. Defaults to Opus 4.7. Operators
+    # who prioritise throughput / cost over intelligence can flip to
+    # `claude-haiku-4-5` here once real-call data justifies it.
+    claude_extractor_model: str = "claude-opus-4-7"
 
     # Admin API key for the /api/v1/reports* endpoints. Empty means
     # auth is disabled (dev bypass); production boot logs a warning
@@ -185,6 +198,11 @@ class Settings(BaseSettings):
             ("llm_model_id", self.llm_model_id),
             ("alert_sns_topic_arn", self.alert_sns_topic_arn or ""),
         ]
+        # ClaudeExtractor needs an API key when enabled — conditional
+        # so ops running enrichment with the No-Op extractor aren't
+        # forced to provision an Anthropic key.
+        if self.extractor_type == "claude":
+            required.append(("anthropic_api_key", self.anthropic_api_key.get_secret_value()))
         missing = [name for name, value in required if not value]
         if missing:
             raise RuntimeError(f"Production boot missing required settings: {', '.join(missing)}")

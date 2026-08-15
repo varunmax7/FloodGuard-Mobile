@@ -52,7 +52,9 @@ rag = [
     "pgvector>=0.3",
 ]
 llm = [
-    "anthropic>=0.40",
+    # Anthropic SDK — used by `enrichment/extractors/claude_llm.py`.
+    # Pinned at the version that ships Opus 4.7 + `messages.parse()`.
+    "anthropic>=0.60",
 ]
 dev = [
     "ruff>=0.8",
@@ -69,6 +71,11 @@ dev = [
     # Async SQLite driver — used by tests so persistence covers can run
     # without a real Postgres. Production uses asyncpg per config.py.
     "aiosqlite>=0.20",
+    # Anthropic SDK for ClaudeExtractor tests — even though the SDK is
+    # optional at runtime (via the `[llm]` extras), the test suite mocks
+    # against it and needs it importable. Kept in dev-deps so a plain
+    # `uv sync` for CI runs a full test pass.
+    "anthropic>=0.60",
 ]
 
 [build-system]
