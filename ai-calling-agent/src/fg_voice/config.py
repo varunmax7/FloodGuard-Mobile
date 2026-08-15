@@ -110,6 +110,12 @@ class Settings(BaseSettings):
     # bring-up path for the P2 exit gate (Twilio does the STT itself);
     # Media Streams comes back for P3 once Deepgram is wired.
     runner_mode: bool = False
+    # RELAY_ENABLED=false disables the outbox relay background task
+    # (useful in tests + in workers that only serve HTTP with no DB
+    # writes). Defaults to true so a fresh deploy drains its outbox
+    # without any extra config.
+    relay_enabled: bool = True
+    relay_poll_interval_sec: float = Field(default=1.0, ge=0.05, le=60.0)
 
     # ── Ops ──────────────────────────────────────────────────
     alert_sns_topic_arn: str | None = None
