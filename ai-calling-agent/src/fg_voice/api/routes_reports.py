@@ -1,9 +1,13 @@
-"""Live reports feed for admin + Flutter clients (§13.1).
+"""Reports feed for admin + Flutter clients (§13.1).
 
-`GET /api/v1/reports/stream` is a Server-Sent Events stream. Every
-outbox row that lands via the relay's `PubSubDispatcher` fans out to
-every open SSE subscriber as one `data:` frame. The client sees a
-new-report event within milliseconds of the DB write committing.
+Two shapes here:
+
+- Live: `GET /api/v1/reports/stream` — Server-Sent Events. Every
+  outbox row that lands via the relay's `PubSubDispatcher` fans out
+  to every open SSE subscriber as one `data:` frame.
+- Read: `GET /api/v1/reports/{short_ref}` and
+  `GET /api/v1/reports?...` — the endpoints the alert payloads point
+  at ("call this to rehydrate the full report"). Both return JSON.
 
 We DON'T write our own SSE library — just the small subset we need
 (`data: {json}\\n\\n` + periodic `:keepalive\\n\\n` comments to stop
@@ -12,33 +16,34 @@ proxies dropping the connection)."""
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 from collections.abc import AsyncIterator
-from typing import Final
+from datetime import datetime
+from typing import Any, Final
+from uuid import UUID
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
+from pydantic import BaseModel, ConfigDict
+from sqlalchemy import and_, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from fg_voice.obs.logging import get_logger
 from fg_voice.persistence.broker import InProcessBroker, ReportEvent, SubscriberLagged
+from fg_voice.persistence.db import get_session_maker
+from fg_voice.persistence.models import Report
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["reports"])
 
-# The broker is process-scoped. Wired at boot in main.py's lifespan;
-# routes reach for it via `_broker_provider()` so tests can override
-# the singleton without touching global state.
-_broker_singleton: InProcessBroker | None = None
+# ─── SSE broker singleton ────────────────────────────────────────────
 
-# How often to emit `:keepalive` when there are no events. Chosen
-# below the 30s default proxy idle timeout (ALB, nginx) so an idle
-# subscriber's connection doesn't get reset.
+_broker_singleton: InProcessBroker | None = None
 KEEPALIVE_INTERVAL_SEC: Final[float] = 15.0
 
 
 def set_broker(broker: InProcessBroker | None) -> None:
-    """Called by `main.py`'s lifespan at boot (with the real broker)
-    and at shutdown (with `None`)."""
     global _broker_singleton
     _broker_singleton = broker
 
@@ -47,20 +52,73 @@ def _broker_provider() -> InProcessBroker | None:
     return _broker_singleton
 
 
+# ─── DB session dependency ───────────────────────────────────────────
+
+
+async def _session_dep() -> AsyncIterator[AsyncSession]:
+    """FastAPI dependency — yields one session per request. Tests
+    override the module-level `_get_session_maker` to inject an
+    in-memory SQLite maker without touching env."""
+    sm = _get_session_maker()
+    async with sm() as session:
+        yield session
+
+
+def _get_session_maker() -> async_sessionmaker[AsyncSession]:
+    """Wrapped so tests can monkeypatch this attribute rather than
+    reaching into `persistence.db`'s module state."""
+    return get_session_maker()
+
+
+# ─── Response models ─────────────────────────────────────────────────
+
+
+class ReportOut(BaseModel):
+    """The JSON shape returned by both /reports/{short_ref} and each
+    item in the list response. Kept flat + string-first so the Flutter
+    app + admin dashboard don't have to interpret nested types."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    report_id: UUID
+    short_ref: str
+    source: str
+    call_sid: str
+    caller_hash: str
+    hazard_type: str | None
+    severity: str | None
+    water_depth_cm: int | None
+    description: str | None
+    location_raw: str | None
+    location_resolved: str | None
+    dedupe_group_id: str | None
+    priority_score: int | None
+    flags: dict[str, Any] | None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ReportListOut(BaseModel):
+    items: list[ReportOut]
+    # Opaque cursor for the next page. `None` when this is the last
+    # page. Clients pass it back verbatim as `?cursor=...`.
+    next_cursor: str | None
+
+
+# ─── Endpoints ───────────────────────────────────────────────────────
+
+
 @router.get("/reports/stream")
 async def stream_reports(request: Request) -> Response:
     """Long-lived SSE connection. Closes cleanly when the client
     disconnects."""
     broker = _broker_provider()
     if broker is None:
-        # Boot hasn't wired the broker yet, or the relay is disabled
-        # in this deploy. Return an empty stream that immediately closes.
         return Response(status_code=503, content="reports stream not available")
-
     return StreamingResponse(
         _event_stream(request, broker),
         media_type="text/event-stream",
-        # `X-Accel-Buffering: no` lets nginx flush frames immediately.
         headers={
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
@@ -69,13 +127,95 @@ async def stream_reports(request: Request) -> Response:
     )
 
 
+@router.get("/reports/{short_ref}", response_model=ReportOut)
+async def get_report(
+    short_ref: str,
+    session: AsyncSession = Depends(_session_dep),
+) -> Report:
+    """Rehydrate a single report by its FG-XXXX short_ref. This is
+    what the alert payload's `short_ref` field points ops to."""
+    row = await session.scalar(select(Report).where(Report.short_ref == short_ref))
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"report {short_ref!r} not found")
+    return row
+
+
+@router.get("/reports", response_model=ReportListOut)
+async def list_reports(
+    session: AsyncSession = Depends(_session_dep),
+    source: str | None = Query(None, max_length=16),
+    hazard_type: str | None = Query(None, max_length=32),
+    severity: str | None = Query(None, max_length=16),
+    life_safety: bool | None = Query(None, description="Filter to life-safety-flagged only"),
+    from_: datetime | None = Query(None, alias="from"),
+    to: datetime | None = Query(None),
+    cursor: str | None = Query(None, max_length=128),
+    limit: int = Query(50, ge=1, le=200),
+) -> ReportListOut:
+    """Paginated list, newest first. Cursor is opaque + keyset-based
+    so pages stay stable under concurrent inserts."""
+    stmt = (
+        select(Report)
+        .order_by(Report.created_at.desc(), Report.report_id.desc())
+        .limit(limit + 1)  # one extra so we know if there's a next page
+    )
+    if source:
+        stmt = stmt.where(Report.source == source)
+    if hazard_type:
+        stmt = stmt.where(Report.hazard_type == hazard_type)
+    if severity:
+        stmt = stmt.where(Report.severity == severity)
+    if from_:
+        stmt = stmt.where(Report.created_at >= from_)
+    if to:
+        stmt = stmt.where(Report.created_at <= to)
+    if cursor:
+        try:
+            cursor_ts, cursor_uuid = _decode_cursor(cursor)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"invalid cursor: {exc}") from exc
+        # Keyset: rows strictly older than the cursor's (created_at, report_id).
+        # Ties on created_at are broken by report_id descending so no row is
+        # ever skipped or repeated across pages.
+        stmt = stmt.where(
+            or_(
+                Report.created_at < cursor_ts,
+                and_(Report.created_at == cursor_ts, Report.report_id < cursor_uuid),
+            )
+        )
+
+    rows = list((await session.scalars(stmt)).all())
+
+    # `flags` is JSON — cross-dialect predicates for a JSON-key lookup
+    # are messy (Postgres has `->>`, SQLite has `json_extract`). We
+    # post-filter in Python; fine for admin/UI listings, revisit if
+    # this becomes a hot path.
+    if life_safety is not None:
+        rows = [r for r in rows if _has_life_safety(r.flags) is life_safety]
+
+    if len(rows) > limit:
+        page = rows[:limit]
+        # Cursor points at the LAST row of the current page — page N+1's
+        # `created_at < cursor` predicate then correctly starts at the
+        # row we peeked. Encoding the peek row instead skips it.
+        anchor = page[-1]
+        next_cursor: str | None = _encode_cursor(anchor.created_at, anchor.report_id)
+    else:
+        page = rows
+        next_cursor = None
+
+    return ReportListOut(
+        items=[ReportOut.model_validate(r) for r in page],
+        next_cursor=next_cursor,
+    )
+
+
+# ─── SSE plumbing (unchanged from previous commit) ───────────────────
+
+
 async def _event_stream(request: Request, broker: InProcessBroker) -> AsyncIterator[bytes]:
-    """The generator that produces SSE frames. Exits when the client
-    disconnects OR the request scope is cancelled."""
     async with broker.subscribe() as queue:
         log.info("reports.stream.subscribed", subscribers=broker.subscriber_count)
-        # Emit an initial hello so the client knows the stream is alive
-        # before any events arrive.
         yield _sse_comment("connected")
         try:
             while True:
@@ -102,33 +242,59 @@ async def _event_stream(request: Request, broker: InProcessBroker) -> AsyncItera
 
 
 def _sse_event(event_type: str, payload: dict[str, object]) -> bytes:
-    """SSE frame: `event:` + `data:` + trailing blank line. `event:` is
-    optional in the spec but useful for client-side filtering."""
     body = json.dumps(payload, separators=(",", ":"), default=str)
     return f"event: {event_type}\ndata: {body}\n\n".encode()
 
 
 def _sse_comment(text: str) -> bytes:
-    """A line starting with `:` is a comment; used for keepalives so
-    proxies see traffic without the client seeing a fake event."""
     return f": {text}\n\n".encode()
 
 
-# Test-friendly re-exports so unit tests can bypass the FastAPI
-# `Request` fixture when they only care about the generator behaviour.
+# ─── Cursor helpers ──────────────────────────────────────────────────
+
+
+def _encode_cursor(created_at: datetime, report_id: UUID) -> str:
+    """Opaque base64 blob. Clients treat it as write-only."""
+    raw = f"{created_at.isoformat()}|{report_id.hex}"
+    return base64.urlsafe_b64encode(raw.encode("ascii")).decode("ascii")
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, UUID]:
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode("ascii")).decode("ascii")
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise ValueError("not base64") from exc
+    parts = raw.split("|", 1)
+    if len(parts) != 2:
+        raise ValueError("cursor missing delimiter")
+    ts_str, uuid_hex = parts
+    try:
+        return datetime.fromisoformat(ts_str), UUID(hex=uuid_hex)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+
+
+def _has_life_safety(flags: dict[str, Any] | None) -> bool:
+    if not flags:
+        return False
+    return bool(flags.get("life_safety"))
+
+
 __all__ = [
     "KEEPALIVE_INTERVAL_SEC",
+    "ReportListOut",
+    "ReportOut",
     "_broker_provider",
     "_event_stream",
+    "_get_session_maker",
     "_sse_comment",
     "_sse_event",
+    "get_report",
+    "list_reports",
     "router",
     "set_broker",
     "stream_reports",
 ]
 
-
-# Unused import silencer for `ReportEvent` — importing here keeps the
-# module-level typing hint explicit for readers even though the
-# stream generator receives events via the broker queue.
+# Warm the ReportEvent import for the SSE `data:` documentation.
 _ = ReportEvent
