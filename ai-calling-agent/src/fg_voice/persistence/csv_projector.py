@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any, Final
 from zoneinfo import ZoneInfo
 
-from fg_voice.persistence.models import OutboxEntry
+from fg_voice.persistence.models import OutboxEntry, Report
 
 # UTF-8 BOM keeps Excel from mangling non-ASCII names — the spec is
 # explicit that district officers open these files in Excel.
@@ -107,7 +107,42 @@ def _is_report_event(event_type: str) -> bool:
 
 
 def _build_row(entry: OutboxEntry, *, agent_version: str) -> dict[str, str]:
+    """Fast-path row: everything the dispatcher has is on the outbox
+    payload — no DB re-read. Structure MUST match `row_from_report`
+    below field-for-field; a divergence is a bug the parity test in
+    tests/unit/test_csv_projector.py should catch."""
     payload = dict(entry.payload or {})
+    return _row_from_dict(payload, agent_version=agent_version)
+
+
+def row_from_report(report: Report, *, agent_version: str) -> dict[str, str]:
+    """Export-path row: rebuild the same dict shape from a Report ORM
+    instance. Used by the `/reports/export.csv` streaming endpoint so
+    a batch export renders identical CSV to what the live projector
+    wrote at ingestion time — schema drift stays impossible."""
+    payload: dict[str, Any] = {
+        "report_id": str(report.report_id),
+        "short_ref": report.short_ref,
+        "source": report.source,
+        "caller_hash": report.caller_hash,
+        "hazard_type": report.hazard_type,
+        "severity": report.severity,
+        "water_depth_cm": report.water_depth_cm,
+        "description": report.description,
+        "location_raw": report.location_raw,
+        "flags": report.flags,
+        "call_sid": report.call_sid,
+        # Report.created_at is a real tz-aware datetime; pass it through
+        # so `_parse_utc` doesn't have to re-parse an isoformat string.
+        "created_at": report.created_at,
+    }
+    return _row_from_dict(payload, agent_version=agent_version)
+
+
+def _row_from_dict(payload: dict[str, Any], *, agent_version: str) -> dict[str, str]:
+    """Single source of truth for the CSV row shape. Called by both
+    the outbox-payload path (`_build_row`) and the ORM-report path
+    (`row_from_report`)."""
     created_utc = _parse_utc(payload.get("created_at")) or datetime.now(UTC)
     return {
         "report_id": str(payload.get("report_id", "")),
@@ -219,7 +254,14 @@ def _append_row(path: Path, row: dict[str, str]) -> None:
 
 
 __all__ = [
+    "BOM",
     "COLUMNS",
     "SCHEMA_VERSION",
     "CsvProjectorDispatcher",
+    "row_from_report",
 ]
+
+
+# Re-export for the export endpoint so it doesn't have to import the
+# private `_BOM` name.
+BOM = _BOM

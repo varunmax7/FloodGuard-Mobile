@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import csv
+import io
 import json
 from collections.abc import AsyncIterator
 from datetime import datetime
@@ -29,8 +31,10 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from fg_voice.config import get_settings
 from fg_voice.obs.logging import get_logger
 from fg_voice.persistence.broker import InProcessBroker, ReportEvent, SubscriberLagged
+from fg_voice.persistence.csv_projector import BOM, COLUMNS, row_from_report
 from fg_voice.persistence.db import get_session_maker
 from fg_voice.persistence.models import Report
 
@@ -125,6 +129,73 @@ async def stream_reports(request: Request) -> Response:
             "Connection": "keep-alive",
         },
     )
+
+
+@router.get("/reports/export.csv")
+async def export_reports_csv(
+    session: AsyncSession = Depends(_session_dep),
+    source: str | None = Query(None, max_length=16),
+    hazard_type: str | None = Query(None, max_length=32),
+    severity: str | None = Query(None, max_length=16),
+    life_safety: bool | None = Query(None),
+    from_: datetime | None = Query(None, alias="from"),
+    to: datetime | None = Query(None),
+) -> Response:
+    """Streams a filtered report set as CSV (§12.3). Uses the same
+    filters as `/reports`, no pagination — the caller gets everything
+    matching their query, one row per report.
+
+    Reuses `row_from_report` from the projector module so a batch
+    export renders identical CSV to what the live projector wrote at
+    ingestion. If the two ever drift, the row-parity test catches it.
+
+    Not paginated because ops workflows typically want the full slice
+    (a district officer downloading yesterday's tide reports). If a
+    query returns 100k+ rows, it should already have `from/to` bounds
+    — and this is a stream, so memory stays flat regardless of size."""
+    agent_version = get_settings().fg_agent_version
+    stmt = select(Report).order_by(Report.created_at.desc(), Report.report_id.desc())
+    if source:
+        stmt = stmt.where(Report.source == source)
+    if hazard_type:
+        stmt = stmt.where(Report.hazard_type == hazard_type)
+    if severity:
+        stmt = stmt.where(Report.severity == severity)
+    if from_:
+        stmt = stmt.where(Report.created_at >= from_)
+    if to:
+        stmt = stmt.where(Report.created_at <= to)
+
+    async def _iter_csv() -> AsyncIterator[bytes]:
+        # Header first, then rows one at a time. `csv.DictWriter` runs
+        # against a fresh StringIO per chunk so we never buffer the
+        # whole file.
+        yield BOM
+        yield _csv_line(dict(zip(COLUMNS, COLUMNS, strict=True)))  # header row
+
+        result = await session.stream_scalars(stmt)
+        async for report in result:
+            # Same post-filter as /reports for the JSON-flag column;
+            # streamed rows honour it too.
+            if life_safety is not None and _has_life_safety(report.flags) is not life_safety:
+                continue
+            yield _csv_line(row_from_report(report, agent_version=agent_version))
+
+    headers = {
+        "Content-Disposition": 'attachment; filename="reports.csv"',
+        "Cache-Control": "no-cache",
+    }
+    return StreamingResponse(_iter_csv(), media_type="text/csv; charset=utf-8", headers=headers)
+
+
+def _csv_line(row: dict[str, str]) -> bytes:
+    """Serialise one row (or the header dict) as a single CSV line
+    with `\\n` terminator + UTF-8 encoding. Kept small — the whole
+    export is O(rows) memory, not O(file)."""
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=COLUMNS, lineterminator="\n")
+    writer.writerow(row)
+    return buf.getvalue().encode("utf-8")
 
 
 @router.get("/reports/{short_ref}", response_model=ReportOut)
