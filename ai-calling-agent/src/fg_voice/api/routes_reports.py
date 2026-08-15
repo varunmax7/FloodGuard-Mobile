@@ -31,6 +31,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from fg_voice.api.auth import AdminApiKey
 from fg_voice.config import get_settings
 from fg_voice.obs.logging import get_logger
 from fg_voice.persistence.broker import InProcessBroker, ReportEvent, SubscriberLagged
@@ -113,7 +114,7 @@ class ReportListOut(BaseModel):
 # ─── Endpoints ───────────────────────────────────────────────────────
 
 
-@router.get("/reports/stream")
+@router.get("/reports/stream", dependencies=[AdminApiKey])
 async def stream_reports(request: Request) -> Response:
     """Long-lived SSE connection. Closes cleanly when the client
     disconnects."""
@@ -131,7 +132,7 @@ async def stream_reports(request: Request) -> Response:
     )
 
 
-@router.get("/reports/export.csv")
+@router.get("/reports/export.csv", dependencies=[AdminApiKey])
 async def export_reports_csv(
     session: AsyncSession = Depends(_session_dep),
     source: str | None = Query(None, max_length=16),
@@ -198,7 +199,7 @@ def _csv_line(row: dict[str, str]) -> bytes:
     return buf.getvalue().encode("utf-8")
 
 
-@router.get("/reports/{short_ref}", response_model=ReportOut)
+@router.get("/reports/{short_ref}", response_model=ReportOut, dependencies=[AdminApiKey])
 async def get_report(
     short_ref: str,
     session: AsyncSession = Depends(_session_dep),
@@ -211,7 +212,7 @@ async def get_report(
     return row
 
 
-@router.get("/reports", response_model=ReportListOut)
+@router.get("/reports", response_model=ReportListOut, dependencies=[AdminApiKey])
 async def list_reports(
     session: AsyncSession = Depends(_session_dep),
     source: str | None = Query(None, max_length=16),

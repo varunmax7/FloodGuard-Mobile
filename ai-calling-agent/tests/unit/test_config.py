@@ -58,6 +58,7 @@ def test_production_secrets_satisfied() -> None:
         twilio_account_sid="AC123",
         twilio_auth_token="tok",
         twilio_phone_number="+911800XXXXXXX",
+        admin_api_key="real-admin-key-rotated",
         deepgram_api_key="dg",
         tts_api_key="tts",
         tts_voice_id="voice",

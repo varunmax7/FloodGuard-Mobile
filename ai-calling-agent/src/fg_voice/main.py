@@ -60,6 +60,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         runner_mode=settings.runner_mode,
         relay_enabled=settings.relay_enabled,
     )
+    if not settings.admin_api_key.get_secret_value():
+        # `require_production_secrets` already refuses to boot in
+        # production without the key, so this branch is only hit in
+        # dev/staging. Warn loudly so an operator doesn't accidentally
+        # expose /reports to the internet.
+        log.warning(
+            "fg_voice.admin_auth_disabled",
+            note="ADMIN_API_KEY is empty; /api/v1/reports* are unauthenticated",
+        )
 
     # Clear any leftover state from a previous lifespan entry so a
     # re-entry (mostly tests) doesn't inherit stale task references.

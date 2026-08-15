@@ -129,6 +129,11 @@ class Settings(BaseSettings):
     alert_webhook_url: str = ""
     alert_webhook_timeout_sec: float = Field(default=5.0, ge=0.5, le=30.0)
 
+    # Admin API key for the /api/v1/reports* endpoints. Empty means
+    # auth is disabled (dev bypass); production boot logs a warning
+    # AND `require_production_secrets` refuses to boot without it set.
+    admin_api_key: SecretStr = SecretStr("")
+
     # ── Ops ──────────────────────────────────────────────────
     alert_sns_topic_arn: str | None = None
     otel_exporter_otlp_endpoint: str | None = None
@@ -159,6 +164,7 @@ class Settings(BaseSettings):
             ("twilio_account_sid", self.twilio_account_sid),
             ("twilio_auth_token", self.twilio_auth_token.get_secret_value()),
             ("twilio_phone_number", self.twilio_phone_number),
+            ("admin_api_key", self.admin_api_key.get_secret_value()),
             ("deepgram_api_key", self.deepgram_api_key.get_secret_value()),
             ("tts_api_key", self.tts_api_key.get_secret_value()),
             ("tts_voice_id", self.tts_voice_id),
