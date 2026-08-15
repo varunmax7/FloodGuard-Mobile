@@ -97,6 +97,20 @@ render-bank:  ## rerender the prerendered TTS audio bank
 build-gazetteer:  ## build the gazetteer FAISS snapshot (P4+)
 	$(PY) python scripts/build_gazetteer.py
 
+# ── migrations ──────────────────────────────────────────────────────
+.PHONY: migrate-current
+migrate-current:  ## show the current DB revision
+	$(PY) alembic current
+
+.PHONY: migrate-upgrade
+migrate-upgrade:  ## apply all pending migrations
+	$(PY) alembic upgrade head
+
+.PHONY: migrate-revision
+migrate-revision:  ## generate a new autogen migration (usage: make migrate-revision m="add x")
+	@if [ -z "$(m)" ]; then echo 'usage: make migrate-revision m="short message"'; exit 1; fi
+	$(PY) alembic revision --autogenerate -m "$(m)"
+
 # ── deploy ──────────────────────────────────────────────────────────
 .PHONY: deploy
 deploy:  ## deploy to $ENV (staging | prod) via terraform (P7+)
