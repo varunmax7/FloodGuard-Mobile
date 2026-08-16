@@ -188,6 +188,11 @@ class Settings(BaseSettings):
     # First-crossing WARNING trips at this depth. 1 = fire on any
     # stuck row; tune upwards if a small standing DLQ is expected.
     dlq_alert_threshold: int = Field(default=1, ge=1, le=1000)
+    # QA sampling rate — fraction of submitted reports flagged for
+    # human review. 0.05 (spec §11.11) is enough to catch systematic
+    # drift without swamping the review queue. Set to 0.0 to disable
+    # sampling entirely (dev / smoke-test deploys).
+    qa_sampling_rate: float = Field(default=0.05, ge=0.0, le=1.0)
 
     # Admin API key for the /api/v1/reports* endpoints. Empty means
     # auth is disabled (dev bypass); production boot logs a warning

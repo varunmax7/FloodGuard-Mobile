@@ -25,6 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession as SqlAsyncSession
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from fg_voice.config import get_settings
 from fg_voice.conversation.report_sink import (
     ReportSink,
     SubmittedReport,
@@ -36,6 +37,7 @@ from fg_voice.persistence.models import Report
 from fg_voice.persistence.outbox import OutboxEventType
 from fg_voice.persistence.outbox import append as append_outbox
 from fg_voice.utils.redact import redact_pii
+from fg_voice.utils.sampling import should_sample_for_qa
 
 
 class SqlReportSink(ReportSink):
@@ -119,6 +121,10 @@ def _build_row(state: CallState, short_ref: str) -> Report:
         location_raw=_slot_str(state, Slot.LOCATION),
         flags={f: True for f in state.flags} if state.flags else None,
         status="pending_enrichment",
+        # Deterministic per-report sampling — Twilio retries reusing
+        # the same report_id land on the same flag value, so the
+        # "5% QA sampling" invariant survives at-least-once delivery.
+        sampled_for_qa=should_sample_for_qa(state.report_id, get_settings().qa_sampling_rate),
         created_at=datetime.now(UTC),
     )
 

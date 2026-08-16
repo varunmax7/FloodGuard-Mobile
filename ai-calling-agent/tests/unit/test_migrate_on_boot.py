@@ -112,5 +112,5 @@ async def test_run_migrations_at_boot_returns_head_revision(tmp_path, dev_env: N
 
     revision = await run_migrations_at_boot()
     # Current head migration id — bump when a new revision is added.
-    assert revision == "2026081503"
+    assert revision == "2026081504"
     reset_engine()

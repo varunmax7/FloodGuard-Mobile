@@ -21,13 +21,13 @@ import csv
 import io
 import json
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Final
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -101,6 +101,11 @@ class ReportOut(BaseModel):
     priority_score: int | None
     flags: dict[str, Any] | None
     status: str
+    # QA sampling — surfaced so the admin dashboard can show the
+    # queue depth + reviewed state without a separate endpoint.
+    sampled_for_qa: bool
+    qa_reviewed_at: datetime | None
+    qa_notes: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -220,6 +225,17 @@ async def list_reports(
     hazard_type: str | None = Query(None, max_length=32),
     severity: str | None = Query(None, max_length=16),
     life_safety: bool | None = Query(None, description="Filter to life-safety-flagged only"),
+    qa_sample: bool | None = Query(
+        None,
+        description="Filter to QA-sampled reports only (true) or non-sampled (false)",
+    ),
+    qa_reviewed: bool | None = Query(
+        None,
+        description=(
+            "Filter to reviewed (true) / unreviewed (false) QA samples. "
+            "Combine with qa_sample=true for 'unreviewed queue' shape."
+        ),
+    ),
     from_: datetime | None = Query(None, alias="from"),
     to: datetime | None = Query(None),
     cursor: str | None = Query(None, max_length=128),
@@ -242,6 +258,14 @@ async def list_reports(
         stmt = stmt.where(Report.created_at >= from_)
     if to:
         stmt = stmt.where(Report.created_at <= to)
+    if qa_sample is not None:
+        stmt = stmt.where(Report.sampled_for_qa.is_(qa_sample))
+    if qa_reviewed is not None:
+        stmt = (
+            stmt.where(Report.qa_reviewed_at.is_not(None))
+            if qa_reviewed
+            else stmt.where(Report.qa_reviewed_at.is_(None))
+        )
     if cursor:
         try:
             cursor_ts, cursor_uuid = _decode_cursor(cursor)
@@ -281,6 +305,51 @@ async def list_reports(
         items=[ReportOut.model_validate(r) for r in page],
         next_cursor=next_cursor,
     )
+
+
+class QaReviewIn(BaseModel):
+    """Body for POST /reports/{short_ref}/qa_review. Notes required so
+    the review is auditable — ops can't sign off silently, matches
+    the DLQ purge pattern."""
+
+    notes: str = Field(min_length=3, max_length=1000)
+
+
+@router.post(
+    "/reports/{short_ref}/qa_review",
+    response_model=ReportOut,
+    dependencies=[AdminApiKey],
+)
+async def review_qa_sample(
+    short_ref: str,
+    body: QaReviewIn,
+    session: AsyncSession = Depends(_session_dep),
+) -> Report:
+    """Mark a QA-sampled report as reviewed. Idempotent by design —
+    a second review overwrites the notes + timestamp so ops can
+    correct a rushed first pass. Not-sampled reports return 400
+    (there's no queue slot to close)."""
+    async with session.begin():
+        row = await session.scalar(select(Report).where(Report.short_ref == short_ref))
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"report {short_ref!r} not found")
+        if not row.sampled_for_qa:
+            raise HTTPException(
+                status_code=400,
+                detail=f"report {short_ref!r} was not sampled for QA",
+            )
+        row.qa_reviewed_at = datetime.now(UTC)
+        row.qa_notes = body.notes.strip()
+        log.info(
+            "qa.reviewed",
+            short_ref=short_ref,
+            report_id=str(row.report_id),
+        )
+    # Re-read outside the write tx so the response reflects committed state.
+    async with session.begin():
+        refreshed = await session.scalar(select(Report).where(Report.short_ref == short_ref))
+        assert refreshed is not None
+        return refreshed
 
 
 # ─── SSE plumbing (unchanged from previous commit) ───────────────────

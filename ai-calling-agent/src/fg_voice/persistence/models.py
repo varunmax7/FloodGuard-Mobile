@@ -16,6 +16,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     DateTime,
     ForeignKey,
     Index,
@@ -72,6 +73,16 @@ class Report(Base):
 
     flags: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(String(24), default="pending_enrichment")
+
+    # QA sampling — spec §11.11 "5% QA sampling queue". At write time,
+    # SqlReportSink flips `sampled_for_qa=true` for ~QA_SAMPLING_RATE
+    # of reports (deterministic hash of report_id so Twilio retries
+    # never disagree with the first pass). Reviewed entries carry the
+    # timestamp + free-text notes; unreviewed samples are what the
+    # QA queue endpoint returns.
+    sampled_for_qa: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    qa_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    qa_notes: Mapped[str | None] = mapped_column(String(1000))
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now_utc)
     updated_at: Mapped[datetime] = mapped_column(
