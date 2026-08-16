@@ -20,6 +20,7 @@ from fg_voice.api.routes_reports import router as reports_router
 from fg_voice.api.routes_voice import router as voice_router
 from fg_voice.config import Settings, get_settings
 from fg_voice.enrichment import EnrichmentDispatcher, EnrichmentFlow
+from fg_voice.enrichment.tasks.dedupe import DedupeStrategy
 from fg_voice.enrichment.tasks.extract import LLMExtractor
 from fg_voice.enrichment.tasks.geocode import Geocoder
 from fg_voice.obs.logging import configure_logging, get_logger
@@ -127,12 +128,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # lazy so a `noop` deploy never touches the anthropic SDK.
             extractor = _build_extractor(settings)
             geocoder = _build_geocoder(settings)
-            flow = EnrichmentFlow(extractor=extractor, geocoder=geocoder)
+            dedupe_strategy = _build_dedupe(settings)
+            flow = EnrichmentFlow(
+                extractor=extractor,
+                geocoder=geocoder,
+                dedupe_strategy=dedupe_strategy,
+            )
             dispatchers.append(EnrichmentDispatcher(flow=flow))
             log.info(
                 "fg_voice.enrichment.wired",
                 extractor=settings.extractor_type,
                 geocoder=settings.geocoder_type,
+                dedupe=settings.dedupe_type,
                 model=(
                     settings.claude_extractor_model if settings.extractor_type == "claude" else None
                 ),
@@ -227,6 +234,21 @@ def _build_geocoder(settings: Settings) -> Geocoder:
     from fg_voice.enrichment.tasks.geocode import NoOpGeocoder
 
     return NoOpGeocoder()
+
+
+def _build_dedupe(settings: Settings) -> DedupeStrategy:
+    """Instantiate the DedupeStrategy picked by `DEDUPE_TYPE`. Lazy
+    import so `noop` deploys stay dependency-free."""
+    if settings.dedupe_type == "text_window":
+        from fg_voice.enrichment.dedupers.text_window import TextWindowDedupe
+
+        return TextWindowDedupe(
+            window_hours=settings.dedupe_window_hours,
+            text_threshold=settings.dedupe_text_threshold,
+        )
+    from fg_voice.enrichment.tasks.dedupe import NoDedupeStrategy
+
+    return NoDedupeStrategy()
 
 
 app = FastAPI(

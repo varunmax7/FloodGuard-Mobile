@@ -160,6 +160,17 @@ class Settings(BaseSettings):
     # onto the row). 80 catches "Vishakapatnam" / "Anantapuram"; below
     # 70 false positives start dominating.
     gazetteer_min_score: int = Field(default=80, ge=0, le=100)
+    # DEDUPE_TYPE selects which DedupeStrategy the enrichment DAG uses.
+    # `noop` leaves every report as its own singleton; `text_window`
+    # groups reports on hazard_type + district + time window + text
+    # similarity (rapidfuzz, part of `[rag]` extras).
+    dedupe_type: Literal["noop", "text_window"] = "noop"
+    # Rolling window for `text_window` dedupe. Spec §11 default is 3h.
+    dedupe_window_hours: int = Field(default=3, ge=1, le=48)
+    # WRatio cutoff for text similarity — spec's embedding cosine
+    # cutoff is 0.82, which tracks similarly at WRatio 82 on the
+    # eval corpus. Tune per real-call calibration.
+    dedupe_text_threshold: int = Field(default=82, ge=0, le=100)
 
     # Admin API key for the /api/v1/reports* endpoints. Empty means
     # auth is disabled (dev bypass); production boot logs a warning
