@@ -193,6 +193,17 @@ class Settings(BaseSettings):
     # drift without swamping the review queue. Set to 0.0 to disable
     # sampling entirely (dev / smoke-test deploys).
     qa_sampling_rate: float = Field(default=0.05, ge=0.0, le=1.0)
+    # /readyz per-check hard timeout. Kept short so a stuck dep never
+    # hangs an ALB health poll; tune upwards only if a P50-slow dep is
+    # deliberately in the path.
+    readyz_timeout_sec: float = Field(default=1.5, ge=0.1, le=30.0)
+    # /readyz outbox-depth threshold. Above this, /readyz reports
+    # `degraded` (200 stays 200 for outbox alone; ALB still routes,
+    # but ops sees the relay-behind signal in the response body).
+    # Only trips 503 if a HARD dep (DB/Redis/relay task) also fails.
+    readyz_outbox_max_depth: int = Field(default=1000, ge=1)
+    # Analogous DLQ-depth threshold. Above this, `degraded` again.
+    readyz_dlq_max_depth: int = Field(default=10, ge=1)
 
     # Admin API key for the /api/v1/reports* endpoints. Empty means
     # auth is disabled (dev bypass); production boot logs a warning
