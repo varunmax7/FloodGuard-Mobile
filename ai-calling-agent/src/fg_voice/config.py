@@ -149,6 +149,17 @@ class Settings(BaseSettings):
     # who prioritise throughput / cost over intelligence can flip to
     # `claude-haiku-4-5` here once real-call data justifies it.
     claude_extractor_model: str = "claude-opus-4-7"
+    # GEOCODER_TYPE selects which Geocoder implementation the
+    # enrichment DAG uses. `noop` is the safe default; `json_gazetteer`
+    # loads the JSON at GAZETTEER_PATH and fuzzy-matches via rapidfuzz
+    # (requires the `[rag]` extras).
+    geocoder_type: Literal["noop", "json_gazetteer"] = "noop"
+    gazetteer_path: Path = Path("./data/gazetteer/districts.json")
+    # Fuzzy-match cutoff in [0, 100]. Below this, no match is returned
+    # (safer to leave location_resolved NULL than write a wrong district
+    # onto the row). 80 catches "Vishakapatnam" / "Anantapuram"; below
+    # 70 false positives start dominating.
+    gazetteer_min_score: int = Field(default=80, ge=0, le=100)
 
     # Admin API key for the /api/v1/reports* endpoints. Empty means
     # auth is disabled (dev bypass); production boot logs a warning

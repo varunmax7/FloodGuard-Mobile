@@ -76,6 +76,11 @@ dev = [
     # against it and needs it importable. Kept in dev-deps so a plain
     # `uv sync` for CI runs a full test pass.
     "anthropic>=0.60",
+    # rapidfuzz for JsonGazetteerGeocoder tests. Same reasoning as
+    # anthropic above — the runtime dep is optional (via `[rag]` extras),
+    # but the tests need the real matcher rather than a mock so we
+    # exercise the actual fuzzy-matching behaviour.
+    "rapidfuzz>=3.10",
 ]
 
 [build-system]

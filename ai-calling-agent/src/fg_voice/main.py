@@ -21,6 +21,7 @@ from fg_voice.api.routes_voice import router as voice_router
 from fg_voice.config import Settings, get_settings
 from fg_voice.enrichment import EnrichmentDispatcher, EnrichmentFlow
 from fg_voice.enrichment.tasks.extract import LLMExtractor
+from fg_voice.enrichment.tasks.geocode import Geocoder
 from fg_voice.obs.logging import configure_logging, get_logger
 from fg_voice.persistence.alerts import (
     AlertBackend,
@@ -125,11 +126,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             # controlled by EXTRACTOR_TYPE (noop | claude); import is
             # lazy so a `noop` deploy never touches the anthropic SDK.
             extractor = _build_extractor(settings)
-            flow = EnrichmentFlow(extractor=extractor)
+            geocoder = _build_geocoder(settings)
+            flow = EnrichmentFlow(extractor=extractor, geocoder=geocoder)
             dispatchers.append(EnrichmentDispatcher(flow=flow))
             log.info(
                 "fg_voice.enrichment.wired",
                 extractor=settings.extractor_type,
+                geocoder=settings.geocoder_type,
                 model=(
                     settings.claude_extractor_model if settings.extractor_type == "claude" else None
                 ),
@@ -202,6 +205,28 @@ def _build_extractor(settings: Settings) -> LLMExtractor:
     from fg_voice.enrichment.tasks.extract import NoOpExtractor
 
     return NoOpExtractor()
+
+
+def _build_geocoder(settings: Settings) -> Geocoder:
+    """Instantiate the Geocoder picked by `GEOCODER_TYPE`. Lazy import
+    so a `noop` deploy never loads rapidfuzz — the `[rag]` extras
+    stays optional at runtime."""
+    if settings.geocoder_type == "json_gazetteer":
+        from fg_voice.enrichment.geocoders.json_gazetteer import (
+            build_gazetteer_geocoder,
+        )
+
+        path = settings.gazetteer_path
+        if not path.exists():
+            # Fail loud at boot — a running deploy pointed at a missing
+            # gazetteer would silently return None for every location.
+            raise RuntimeError(
+                f"GEOCODER_TYPE=json_gazetteer but GAZETTEER_PATH does not exist: {path}"
+            )
+        return build_gazetteer_geocoder(path=path, min_score=settings.gazetteer_min_score)
+    from fg_voice.enrichment.tasks.geocode import NoOpGeocoder
+
+    return NoOpGeocoder()
 
 
 app = FastAPI(
