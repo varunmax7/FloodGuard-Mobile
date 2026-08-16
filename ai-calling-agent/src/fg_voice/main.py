@@ -251,7 +251,7 @@ def _build_geocoder(settings: Settings) -> Geocoder:
     stays optional at runtime."""
     if settings.geocoder_type == "json_gazetteer":
         from fg_voice.enrichment.geocoders.json_gazetteer import (
-            build_gazetteer_geocoder,
+            build_gazetteer_geocoder_with_mandals,
         )
 
         path = settings.gazetteer_path
@@ -261,7 +261,21 @@ def _build_geocoder(settings: Settings) -> Geocoder:
             raise RuntimeError(
                 f"GEOCODER_TYPE=json_gazetteer but GAZETTEER_PATH does not exist: {path}"
             )
-        return build_gazetteer_geocoder(path=path, min_score=settings.gazetteer_min_score)
+        # Mandals are optional — degrade gracefully to district-only if
+        # the file isn't shipped in this deploy.
+        mandals_path = settings.mandal_gazetteer_path
+        effective_mandals = mandals_path if mandals_path and mandals_path.exists() else None
+        if mandals_path and not effective_mandals:
+            log.warning(
+                "fg_voice.geocoder.mandals_disabled",
+                configured_path=str(mandals_path),
+                reason="MANDAL_GAZETTEER_PATH set but file missing; district-only matching",
+            )
+        return build_gazetteer_geocoder_with_mandals(
+            districts_path=path,
+            mandals_path=effective_mandals,
+            min_score=settings.gazetteer_min_score,
+        )
     from fg_voice.enrichment.tasks.geocode import NoOpGeocoder
 
     return NoOpGeocoder()

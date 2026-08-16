@@ -182,3 +182,8 @@ markers = [
 source = ["src/fg_voice"]
 branch = true
 omit = ["*/__init__.py"]
+
+[dependency-groups]
+scripts = [
+    "dbfread>=2.0.7",
+]

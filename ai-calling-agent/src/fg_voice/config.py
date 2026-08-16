@@ -155,6 +155,14 @@ class Settings(BaseSettings):
     # (requires the `[rag]` extras).
     geocoder_type: Literal["noop", "json_gazetteer"] = "noop"
     gazetteer_path: Path = Path("./data/gazetteer/districts.json")
+    # Optional mandal (sub-district) gazetteer. When set AND the file
+    # exists, the geocoder loads it alongside the district list — a
+    # caller saying "Anaparthi" resolves to
+    # "Anaparthi, East Godavari, Andhra Pradesh" instead of falling
+    # through to fuzzy over districts alone. If the path is empty or
+    # missing, mandal matching is silently disabled (district-only
+    # matching remains functional).
+    mandal_gazetteer_path: Path | None = Path("./data/gazetteer/mandals.json")
     # Fuzzy-match cutoff in [0, 100]. Below this, no match is returned
     # (safer to leave location_resolved NULL than write a wrong district
     # onto the row). 80 catches "Vishakapatnam" / "Anantapuram"; below

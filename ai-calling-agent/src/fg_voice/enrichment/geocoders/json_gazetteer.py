@@ -67,17 +67,38 @@ _WORD_RE = re.compile(r"[A-Za-z][A-Za-z\.\- ]*[A-Za-z]|[A-Za-z]")
 
 @dataclass(frozen=True, slots=True)
 class DistrictEntry:
-    """One row from the loaded gazetteer JSON."""
+    """One row from the loaded gazetteer JSON. Represents either a
+    district (no `district` field) or a mandal / sub-district
+    (`district` set to the parent). Kept as one class rather than
+    a district/mandal split so the match corpus stays a flat list
+    and rapidfuzz can score across both tiers in one pass.
+
+    The `resolved()` format differs by tier:
+    - District: `"Warangal, Telangana"`
+    - Mandal:   `"Bapatla, Bapatla, Andhra Pradesh"`
+      (mandal → district → state; deliberate three-part shape so
+      downstream consumers can split on `, ` and know exactly which
+      tier they got.)
+    """
 
     name: str
     state: str
     variants: tuple[str, ...]
+    # None → this is a district entry. Set → this is a mandal, and
+    # the value is the canonical district name it belongs to.
+    district: str | None = None
 
     def all_forms(self) -> tuple[str, ...]:
         return (self.name, *self.variants)
 
     def resolved(self) -> str:
+        if self.district is not None:
+            return f"{self.name}, {self.district}, {self.state}"
         return f"{self.name}, {self.state}"
+
+    @property
+    def is_mandal(self) -> bool:
+        return self.district is not None
 
 
 @dataclass(slots=True)
@@ -103,15 +124,23 @@ class JsonGazetteerGeocoder:
         exact: dict[str, DistrictEntry] = {}
         forms: list[str] = []
         form_to_entry: dict[str, DistrictEntry] = {}
-        for entry in self.entries:
+        # Register mandals FIRST — districts will overwrite mandal
+        # exact matches on collision, because a district is the
+        # safer coarser answer when the caller says just "Kakinada"
+        # (both a district AND a mandal). Substring / fuzzy match
+        # still compete across both tiers.
+        mandals = tuple(e for e in self.entries if e.is_mandal)
+        districts = tuple(e for e in self.entries if not e.is_mandal)
+        for entry in (*mandals, *districts):
             for form in entry.all_forms():
                 key = form.lower().strip()
                 if not key:
                     continue
-                # First-wins on collisions. In the current data this
-                # only happens for "Warangal" (both canonical and
-                # variant) — either mapping is correct.
-                exact.setdefault(key, entry)
+                # Unconditional overwrite so districts win on collision
+                # over the mandals registered first. In the current
+                # data this affects "Kakinada" (district beats mandal),
+                # "Anantapur" (district beats mandal), etc.
+                exact[key] = entry
                 forms.append(form)
                 form_to_entry[form] = entry
         # `dataclass(slots=True, frozen=False)` blocks attribute
@@ -215,11 +244,56 @@ def load_gazetteer(path: Path) -> tuple[DistrictEntry, ...]:
     return tuple(entries)
 
 
+def load_mandal_gazetteer(path: Path) -> tuple[DistrictEntry, ...]:
+    """Read a mandal-level JSON (top-level `mandals` key, each row
+    carries `name`/`district`/`state`). Returns `DistrictEntry` rows
+    with `district` populated. Same fail-loud discipline as
+    `load_gazetteer` — a bad file at boot beats mis-resolving for
+    the whole shift."""
+    with path.open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict) or "mandals" not in data:
+        raise ValueError(f"Mandal gazetteer at {path} missing top-level 'mandals' key")
+    raw_entries = data["mandals"]
+    if not isinstance(raw_entries, list) or not raw_entries:
+        raise ValueError(f"Mandal gazetteer at {path} has empty or non-list 'mandals'")
+    entries: list[DistrictEntry] = []
+    for i, row in enumerate(raw_entries):
+        try:
+            entries.append(
+                DistrictEntry(
+                    name=row["name"],
+                    state=row["state"],
+                    district=row["district"],
+                    variants=tuple(row.get("variants", []) or ()),
+                )
+            )
+        except (KeyError, TypeError) as exc:
+            raise ValueError(f"Mandal gazetteer row {i} malformed: {exc}") from exc
+    return tuple(entries)
+
+
 def build_gazetteer_geocoder(
     path: Path, *, min_score: int = DEFAULT_MIN_SCORE
 ) -> JsonGazetteerGeocoder:
     """Convenience constructor — reads the file + wires the geocoder in one call."""
     return JsonGazetteerGeocoder(entries=load_gazetteer(path), min_score=min_score)
+
+
+def build_gazetteer_geocoder_with_mandals(
+    districts_path: Path,
+    mandals_path: Path | None,
+    *,
+    min_score: int = DEFAULT_MIN_SCORE,
+) -> JsonGazetteerGeocoder:
+    """Convenience constructor that loads BOTH gazetteers (districts +
+    mandals). Passing None for `mandals_path` degrades gracefully to
+    district-only matching — useful in tests + dev deploys that don't
+    ship the mandal file."""
+    entries: tuple[DistrictEntry, ...] = load_gazetteer(districts_path)
+    if mandals_path is not None:
+        entries = entries + load_mandal_gazetteer(mandals_path)
+    return JsonGazetteerGeocoder(entries=entries, min_score=min_score)
 
 
 # Keep _WORD_RE from being tree-shaken as dead code — reserved for a
@@ -231,5 +305,7 @@ __all__ = [
     "DistrictEntry",
     "JsonGazetteerGeocoder",
     "build_gazetteer_geocoder",
+    "build_gazetteer_geocoder_with_mandals",
     "load_gazetteer",
+    "load_mandal_gazetteer",
 ]
