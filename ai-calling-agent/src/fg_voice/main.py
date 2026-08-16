@@ -13,6 +13,7 @@ from fastapi import FastAPI
 
 from fg_voice import __version__
 from fg_voice.api import routes_reports
+from fg_voice.api.routes_dlq import router as dlq_router
 from fg_voice.api.routes_gather import router as gather_router
 from fg_voice.api.routes_health import router as health_router
 from fg_voice.api.routes_media import router as media_router
@@ -34,6 +35,7 @@ from fg_voice.persistence.broker import InProcessBroker
 from fg_voice.persistence.csv_projector import CsvProjectorDispatcher
 from fg_voice.persistence.db import run_migrations_at_boot
 from fg_voice.persistence.dispatchers import ChainDispatcher, PubSubDispatcher
+from fg_voice.persistence.dlq_monitor import DlqMonitor
 from fg_voice.persistence.relay import Dispatcher, LogDispatcher, OutboxRelay
 
 log = get_logger(__name__)
@@ -41,6 +43,7 @@ log = get_logger(__name__)
 # Bound to the FastAPI `app.state` at lifespan entry; kept as
 # module-level references so tests can peek at the running relay.
 _relay_task: asyncio.Task[None] | None = None
+_dlq_monitor_task: asyncio.Task[None] | None = None
 _shutdown_event: asyncio.Event | None = None
 _broker: InProcessBroker | None = None
 
@@ -51,7 +54,7 @@ _RELAY_SHUTDOWN_TIMEOUT_SEC = 5.0
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    global _relay_task, _shutdown_event, _broker
+    global _relay_task, _dlq_monitor_task, _shutdown_event, _broker
 
     settings = get_settings()
     configure_logging(settings.fg_log_level, service="fg_voice")
@@ -92,6 +95,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.relay_task = None
     app.state.relay = None
     app.state.broker = None
+    app.state.dlq_monitor_task = None
+    app.state.dlq_monitor = None
 
     if settings.relay_enabled:
         _broker = InProcessBroker()
@@ -157,6 +162,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.broker = _broker
         app.state.relay = relay
         app.state.relay_task = _relay_task
+
+        # DLQ depth monitor — shares the shutdown_event so both tasks
+        # drain on SIGTERM together. Cheap (one COUNT per interval);
+        # gives ops the only ongoing visibility into stuck-row
+        # accumulation.
+        if settings.dlq_monitor_enabled:
+            monitor = DlqMonitor(
+                interval_sec=settings.dlq_monitor_interval_sec,
+                alert_threshold=settings.dlq_alert_threshold,
+            )
+            _dlq_monitor_task = asyncio.create_task(
+                monitor.run(_shutdown_event), name="fg_voice.dlq_monitor"
+            )
+            app.state.dlq_monitor = monitor
+            app.state.dlq_monitor_task = _dlq_monitor_task
         # LogDispatcher isn't wired in the chain today because the
         # relay-side logs already record dispatched entries; adding
         # log-in-chain would double-log every event.
@@ -175,6 +195,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 with contextlib.suppress(BaseException):
                     await _relay_task
             _relay_task = None
+            # DLQ monitor shares the shutdown_event; wait for it too.
+            if _dlq_monitor_task is not None:
+                with contextlib.suppress(TimeoutError, asyncio.CancelledError):
+                    await asyncio.wait_for(_dlq_monitor_task, timeout=_RELAY_SHUTDOWN_TIMEOUT_SEC)
+                if not _dlq_monitor_task.done():
+                    _dlq_monitor_task.cancel()
+                    with contextlib.suppress(BaseException):
+                        await _dlq_monitor_task
+                _dlq_monitor_task = None
+                app.state.dlq_monitor_task = None
+                app.state.dlq_monitor = None
             _shutdown_event = None
             app.state.relay_task = None
             app.state.relay = None
@@ -264,3 +295,4 @@ app.include_router(voice_router)
 app.include_router(media_router)
 app.include_router(gather_router)
 app.include_router(reports_router)
+app.include_router(dlq_router)

@@ -171,6 +171,15 @@ class Settings(BaseSettings):
     # cutoff is 0.82, which tracks similarly at WRatio 82 on the
     # eval corpus. Tune per real-call calibration.
     dedupe_text_threshold: int = Field(default=82, ge=0, le=100)
+    # DLQ_MONITOR_ENABLED=true spawns a background task that logs the
+    # outbox DLQ depth every DLQ_MONITOR_INTERVAL_SEC seconds. Default
+    # on because it's cheap (one COUNT per interval) and gives ops the
+    # only ongoing visibility into stuck-row accumulation.
+    dlq_monitor_enabled: bool = True
+    dlq_monitor_interval_sec: float = Field(default=60.0, ge=1.0, le=3600.0)
+    # First-crossing WARNING trips at this depth. 1 = fire on any
+    # stuck row; tune upwards if a small standing DLQ is expected.
+    dlq_alert_threshold: int = Field(default=1, ge=1, le=1000)
 
     # Admin API key for the /api/v1/reports* endpoints. Empty means
     # auth is disabled (dev bypass); production boot logs a warning
