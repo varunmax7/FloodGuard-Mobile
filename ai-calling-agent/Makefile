@@ -93,6 +93,14 @@ audit:  ## dependency vulnerability scan
 render-bank:  ## rerender the prerendered TTS audio bank
 	$(PY) python scripts/render_audio_bank.py --locale en-IN
 
+.PHONY: geo-eval
+geo-eval:  ## run P4 geo-resolution exit gate (accuracy + latency checks)
+	$(PY) python -m scripts.run_geo_eval \
+		--fragments data/eval/geo/fragments.json \
+		--districts data/gazetteer/districts.json \
+		--pois data/gazetteer/coastal_pois.json \
+		--mandals data/gazetteer/mandals.json
+
 .PHONY: build-gazetteer
 build-gazetteer:  ## build the gazetteer FAISS snapshot (P4+)
 	$(PY) python scripts/build_gazetteer.py

@@ -231,8 +231,74 @@ def build_keyterms_prompt() -> dict[str, list[str]]:
     return {"keyterms": build_keyterms()}
 
 
+# ─── Dynamic per-call keyterms (spec §9.3) ───────────────────────────
+
+
+def build_dynamic_keyterms(
+    *,
+    gazetteer: object | None = None,
+    prior_district: str | None = None,
+    prior_state: str | None = None,
+    top_k_places: int = 50,
+) -> list[str]:
+    """Assemble a per-call keyterm list: STATIC hazard/severity/coastal
+    vocabulary + top-K place names biased to the caller's district
+    or state.
+
+    `gazetteer` is typed as `object` to keep this module free of a
+    hard rag/gazetteer import (that module imports rag/phonetic
+    which imports pip-optional `metaphone` — we don't want a
+    keyterms build to trigger that dep chain when the caller only
+    wants the static set). Runtime type is a `Gazetteer` instance
+    with a `by_district` and `by_state` method.
+
+    `prior_district` / `prior_state` are the caller's inferred geo
+    location (from msisdn state/circle, prior reports, or a running
+    incident). When both are None, this returns exactly the static
+    keyterms.
+
+    Returned list is capped at `MAX_KEYTERMS` — static + top-K places
+    fits comfortably under 200 in practice."""
+    parts: list[str] = []
+    parts.extend(_HAZARD_KEYTERMS)
+    parts.extend(_SEVERITY_KEYTERMS)
+    parts.extend(_COASTAL_CONTEXT_TERMS)
+
+    if gazetteer is not None and (prior_district or prior_state):
+        # District entries first — tighter geographic prior than state.
+        seen: set[str] = set()
+        candidates: list[str] = []
+        if prior_district and hasattr(gazetteer, "by_district"):
+            for entry in gazetteer.by_district(prior_district):
+                name = getattr(entry, "canonical_name", "")
+                if name and name.lower() not in seen:
+                    seen.add(name.lower())
+                    candidates.append(name)
+                    for v in getattr(entry, "variants", ()):
+                        if v.lower() not in seen:
+                            seen.add(v.lower())
+                            candidates.append(v)
+                if len(candidates) >= top_k_places:
+                    break
+        if len(candidates) < top_k_places and prior_state and hasattr(gazetteer, "by_state"):
+            for entry in gazetteer.by_state(prior_state):
+                if len(candidates) >= top_k_places:
+                    break
+                name = getattr(entry, "canonical_name", "")
+                if name and name.lower() not in seen:
+                    seen.add(name.lower())
+                    candidates.append(name)
+        parts.extend(candidates[:top_k_places])
+
+    deduped = dedupe_case_insensitive(parts)
+    if len(deduped) > MAX_KEYTERMS:
+        deduped = deduped[:MAX_KEYTERMS]
+    return deduped
+
+
 __all__ = [
     "MAX_KEYTERMS",
+    "build_dynamic_keyterms",
     "build_keyterms",
     "build_keyterms_prompt",
     "dedupe_case_insensitive",
