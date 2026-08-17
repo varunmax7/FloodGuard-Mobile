@@ -224,6 +224,25 @@ class Settings(BaseSettings):
     # upgrade). Dev + single-node deploys can flip it on.
     migrate_on_boot: bool = False
 
+    # ── SMS pin-drop offer (spec §7.3 ladder attempt 4 + §11) ───
+    # SMS_PIN_OFFER_ENABLED=true fires an SMS from /voice/status when
+    # the last CallState shows a timeout-exit or a low-confidence
+    # location. Off by default because it needs real Twilio SMS creds
+    # and a public-facing base URL; a broken config is worse than no
+    # SMS (spec §2.6). The web form is served regardless — the SMS
+    # sender is what's optional.
+    sms_pin_offer_enabled: bool = False
+    # Public base URL that the SMS body links to. In dev this can be
+    # the ngrok URL; in prod it's https://voice.floodguard.in.
+    # Trailing slashes tolerated. Empty → disables the sender at boot
+    # even if `sms_pin_offer_enabled=true` (loud warning in main.py).
+    sms_pin_offer_base_url: str = ""
+    # Threshold below which we treat the LOCATION slot as too
+    # uncertain to skip the SMS. Defaults to `geo_accept_threshold`
+    # per §9.4; kept as its own field so ops can tune SMS aggressiveness
+    # without changing the in-call acceptance behaviour.
+    sms_pin_offer_location_min_conf: float = Field(default=0.85, ge=0.0, le=1.0)
+
     # ── Ops ──────────────────────────────────────────────────
     alert_sns_topic_arn: str | None = None
     otel_exporter_otlp_endpoint: str | None = None

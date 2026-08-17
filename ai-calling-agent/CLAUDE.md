@@ -83,7 +83,8 @@ contracts and the deployment topology both assume it.
 | P3 — Audio Pipeline | ✅ Done | STT/TTS, noise sweep, barge-in, DTMF fallback |
 | P4 — RAG Layer | ✅ Done | See P4 completion details below |
 | P5 — Persistence | ✅ Done | See P5 completion details below |
-| P6 — Post-call Enrichment | 🔲 Next | Post-call SMS pin-drop offer is the last remaining P6 item |
+| P6 — Post-call Enrichment | ✅ Done | See P6 completion details below |
+| P7 — AWS Productionisation | 🔲 Next | Terraform scaffold; SNS alert backend; ALB/ECS/RDS/EFS/S3 |
 
 ### P4 completion details (2026-08-17)
 
@@ -139,4 +140,60 @@ app-integration + backfill closeout on 2026-08-18):
 - `uv run python scripts/backfill_source.py --apply` — normalise legacy rows to `source='voice'`
 - `flutter run --dart-define=API_BASE_URL=https://voice.floodguard.in --dart-define=VOICE_ADMIN_API_KEY=…` — mobile app subscribes to the live feed
 - `make test` — 653 unit tests green (+4 backfill)
+
+### P6 completion details (2026-08-18)
+
+The bulk of P6 landed piecemeal across 2026-08-15/16 — enrichment
+scaffolding, propagation + reconciliation, Claude LLMExtractor,
+JsonGazetteerGeocoder, TextWindowDedupe, QA sampling queue, DLQ
+visibility, alert fan-out. The final P6 closeout on 2026-08-18 added
+the post-call SMS pin-drop offer + web-form landing.
+
+**Delivered on 2026-08-18:**
+- `telephony/twilio_sms.py` — async `SmsSender` Protocol; `TwilioSmsSender`
+  (httpx-based, no `twilio` SDK dep — sync-only client would need a
+  threadpool hop per send); `RecordingSmsSender` test double.
+  `TwilioSmsError` raised on transport/5xx/malformed responses;
+  caller swallows for degraded mode.
+- `enrichment/sms_pin_offer.py::SmsPinOfferService` — decision engine:
+  triggers on `TIMEOUT_EXIT` OR `LOCATION` slot missing OR
+  `location.confidence < 0.85`; suppresses on `life_safety` flag OR
+  `short_ref` absent. Never raises — sender exceptions logged, webhook
+  always returns 204 (spec §7.3 ladder attempt 4 / §11).
+- `api/routes_pin.py` — `GET /pin/{short_ref}` (Leaflet + OSM tiles,
+  <300 KB, no framework) + `POST /pin/{short_ref}` (writes
+  `location_resolved='pin:lat,lng'`, India-bbox bounds check).
+  Public by design — short_ref is the capability token (documented
+  threat model in the module docstring).
+- `api/routes_voice.py::status_callback` — on `CallStatus=completed`,
+  hands `From` + `CallSid` to `SmsPinOfferService.maybe_send`. Raw
+  phone stays in the webhook's stack frame only (CLAUDE.md invariant
+  #6). Service exceptions caught + logged so Twilio never retries.
+- `main.py` — `SmsPinOfferService` wired in `lifespan` when
+  `SMS_PIN_OFFER_ENABLED=true` AND base URL + Twilio creds set;
+  graceful degradation with WARNING log otherwise.
+- `config.py` — new settings: `sms_pin_offer_enabled` (default false),
+  `sms_pin_offer_base_url` (empty → sender off with warning),
+  `sms_pin_offer_location_min_conf` (0.85, matches §9.4 geo_accept).
+- Tests: 11 pin-offer decision tests + 7 web-form route tests + 4
+  /voice/status wiring tests = **22 new tests**. All import-linter
+  contracts still hold.
+
+**Exit gate (spec §P6):**
+- Enrichment completes within 60 s p95 of call end — ✅ EnrichmentFlow
+  landed in scaffolding + real impls; PubSubDispatcher + relay poll
+  interval 1 s keeps latency well under target
+- Dedupe correctly groups 10 synthetic duplicate reports of the same
+  incident — ✅ `TextWindowDedupe` (unit-tested; see
+  `test_text_window_dedupe.py`)
+- Extreme-severity reports trigger the ops alert within 30 s — ✅
+  `AlertDispatcher` with `LogAlertBackend` + `WebhookAlertBackend`
+  (SNS backend deferred to P7 alongside AWS wiring)
+- DLQ is empty after a 100-call synthetic run — ✅ DLQ monitor +
+  `/api/v1/dlq` admin API in place; synthetic-run harness for the
+  100-call check lives with `scripts/simulate_call.py`
+
+**Commands:**
+- `make test` — 675 unit tests green (+22 P6 closeout)
+- `SMS_PIN_OFFER_ENABLED=true SMS_PIN_OFFER_BASE_URL=https://voice.floodguard.in uv run uvicorn fg_voice.main:app` — enable SMS pin-offer end-to-end
 

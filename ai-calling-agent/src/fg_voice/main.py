@@ -12,15 +12,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from fg_voice import __version__
-from fg_voice.api import routes_reports
+from fg_voice.api import routes_reports, routes_voice
 from fg_voice.api.routes_dlq import router as dlq_router
 from fg_voice.api.routes_gather import router as gather_router
 from fg_voice.api.routes_health import router as health_router
 from fg_voice.api.routes_media import router as media_router
+from fg_voice.api.routes_pin import router as pin_router
 from fg_voice.api.routes_reports import router as reports_router
 from fg_voice.api.routes_voice import router as voice_router
 from fg_voice.config import Settings, get_settings
+from fg_voice.conversation.state_store import get_call_state_store
 from fg_voice.enrichment import EnrichmentDispatcher, EnrichmentFlow
+from fg_voice.enrichment.sms_pin_offer import SmsPinOfferService
 from fg_voice.enrichment.tasks.dedupe import DedupeStrategy
 from fg_voice.enrichment.tasks.extract import LLMExtractor
 from fg_voice.enrichment.tasks.geocode import Geocoder
@@ -37,6 +40,7 @@ from fg_voice.persistence.db import run_migrations_at_boot
 from fg_voice.persistence.dispatchers import ChainDispatcher, PubSubDispatcher
 from fg_voice.persistence.dlq_monitor import DlqMonitor
 from fg_voice.persistence.relay import Dispatcher, LogDispatcher, OutboxRelay
+from fg_voice.telephony.twilio_sms import TwilioSmsSender
 
 log = get_logger(__name__)
 
@@ -182,6 +186,42 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # log-in-chain would double-log every event.
         _ = LogDispatcher  # keep the import warm so the linter is quiet
 
+    # ── SMS pin-drop offer ────────────────────────────────────────
+    # Independent of the relay — wired straight into the /voice/status
+    # handler. Off unless enabled AND a base URL is set (a broken
+    # config is worse than no SMS per §2.6).
+    if settings.sms_pin_offer_enabled:
+        if not settings.sms_pin_offer_base_url:
+            log.warning(
+                "fg_voice.sms_pin_offer.disabled",
+                reason="SMS_PIN_OFFER_BASE_URL empty; SMS sender not wired",
+            )
+        elif not settings.twilio_account_sid or not settings.twilio_auth_token.get_secret_value():
+            log.warning(
+                "fg_voice.sms_pin_offer.disabled",
+                reason="Twilio credentials missing; SMS sender not wired",
+            )
+        else:
+            sender = TwilioSmsSender(
+                account_sid=settings.twilio_account_sid,
+                auth_token=settings.twilio_auth_token.get_secret_value(),
+            )
+            state_store = await get_call_state_store()
+            service = SmsPinOfferService(
+                sender=sender,
+                state_store=state_store,
+                from_number=settings.twilio_phone_number,
+                web_base_url=settings.sms_pin_offer_base_url,
+                location_confidence_threshold=settings.sms_pin_offer_location_min_conf,
+            )
+            routes_voice.set_sms_pin_offer_service(service)
+            app.state.sms_pin_offer_service = service
+            log.info(
+                "fg_voice.sms_pin_offer.wired",
+                base_url=settings.sms_pin_offer_base_url,
+                from_number=settings.twilio_phone_number,
+            )
+
     try:
         yield
     finally:
@@ -210,7 +250,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.relay_task = None
             app.state.relay = None
         routes_reports.set_broker(None)
+        routes_voice.set_sms_pin_offer_service(None)
         app.state.broker = None
+        app.state.sms_pin_offer_service = None
         _broker = None
         log.info("fg_voice.stopping")
 
@@ -310,3 +352,4 @@ app.include_router(media_router)
 app.include_router(gather_router)
 app.include_router(reports_router)
 app.include_router(dlq_router)
+app.include_router(pin_router)

@@ -32,6 +32,26 @@ router = APIRouter(prefix="/voice", tags=["voice"])
 # with an in-memory store so we don't hit Redis for /voice/* unit tests.
 _session_store_provider = get_session_store
 
+# Set by main.py's lifespan when SMS pin-offer is enabled AND configured.
+# Left as None in dev / when SMS is off — the status webhook then just
+# logs and skips. Kept module-scoped so tests can inject a RecordingSender-
+# backed service without patching the lifespan.
+_sms_pin_offer_service: "SmsPinOfferServiceLike | None" = None
+
+
+class SmsPinOfferServiceLike:
+    """Duck-typed reference (avoid an enrichment→api import cycle).
+    Any object with `.maybe_send(*, call_sid, to_number)` satisfies
+    this — the real impl is `enrichment.sms_pin_offer.SmsPinOfferService`."""
+
+    async def maybe_send(self, *, call_sid: str, to_number: str) -> bool:  # pragma: no cover
+        ...
+
+
+def set_sms_pin_offer_service(service: "SmsPinOfferServiceLike | None") -> None:
+    global _sms_pin_offer_service
+    _sms_pin_offer_service = service
+
 
 def _reconstruct_url(request: Request) -> str:
     """Rebuild the URL Twilio saw — behind an ALB the scheme and host
@@ -117,9 +137,14 @@ async def status_callback(
     CallDuration: Annotated[str, Form()] = "",
 ) -> Response:
     """Lifecycle events: initiated | ringing | answered | completed.
-    Persist final duration + outcome on completed."""
+    Persist final duration + outcome on completed, then fire the
+    post-call SMS pin offer if enabled + triggerable (spec §7.3
+    ladder attempt 4 / §11 pin-drop). SMS failure is logged, never
+    propagated — a 5xx here would cause Twilio to retry the status
+    webhook, which the outbox already handled once."""
     form = await request.form()
-    await _validate(request, x_twilio_signature, {k: str(v) for k, v in form.items()})
+    form_params = {k: str(v) for k, v in form.items()}
+    await _validate(request, x_twilio_signature, form_params)
 
     store = await _session_store_provider()
 
@@ -127,6 +152,16 @@ async def status_callback(
         duration_sec = int(CallDuration) if CallDuration.isdigit() else None
         await store.finalize(call_sid=CallSid, duration_sec=duration_sec, outcome="completed")
         log.info("voice.status.completed", call_sid=CallSid, duration_sec=duration_sec)
+        if _sms_pin_offer_service is not None:
+            # `From` on the status webhook is the caller MSISDN. Kept
+            # in this stack frame only per CLAUDE.md invariant #6.
+            to_number = form_params.get("From", "")
+            try:
+                await _sms_pin_offer_service.maybe_send(
+                    call_sid=CallSid, to_number=to_number
+                )
+            except Exception:  # noqa: BLE001 — belt + suspenders around the service's own try/except
+                log.exception("voice.sms_pin_offer.unexpected_error", call_sid=CallSid)
     else:
         log.info("voice.status", call_sid=CallSid, status=CallStatus)
 
