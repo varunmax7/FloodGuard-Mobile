@@ -56,6 +56,21 @@ class Node:
     # as soon as the runner enters them. Used for START, RESOLVE_LOCATION,
     # SUBMIT, and START_OVER.
     is_machine: bool = False
+    # Optional per-node overrides for Deepgram Flux end-of-turn
+    # detection (spec §9.2). `None` falls back to the global settings
+    # values (`stt_eot_threshold`, `stt_eot_timeout_ms`). Overrides
+    # matter for nodes where the caller-utterance shape differs from
+    # the default:
+    #
+    # - **LOCATION**: callers often pause mid-utterance to think
+    #   ("uh, near the... the beach next to..."). Higher timeout +
+    #   lower threshold prevents premature cutoff.
+    # - **CONFIRMATION**: yes/no answers are short + fast; tighter
+    #   threshold cuts turn latency.
+    # - **DESCRIPTION**: freeform speech benefits from a slightly
+    #   longer timeout — this is the slot most likely to be cut off.
+    eot_threshold_override: float | None = None
+    eot_timeout_ms_override: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +90,30 @@ class Graph:
             return self.nodes[node_id]
         except KeyError as exc:
             raise UnknownNodeError(node_id) from exc
+
+    def effective_eot(
+        self,
+        node_id: NodeId,
+        *,
+        default_threshold: float,
+        default_timeout_ms: int,
+    ) -> EotConfig:
+        """Resolve the (threshold, timeout_ms) pair Deepgram Flux should
+        use when we're listening on `node_id`. Per-node overrides win;
+        otherwise the caller-supplied defaults (from settings) apply.
+
+        Kept as a method on `Graph` — not the node dataclass itself —
+        so the runtime consumer doesn't have to import `Settings` into
+        the graph module."""
+        node = self.node(node_id)
+        return EotConfig(
+            threshold=node.eot_threshold_override
+            if node.eot_threshold_override is not None
+            else default_threshold,
+            timeout_ms=node.eot_timeout_ms_override
+            if node.eot_timeout_ms_override is not None
+            else default_timeout_ms,
+        )
 
     def reachable_from_start(self) -> frozenset[NodeId]:
         """BFS from START plus global_interrupt_targets. Every declared
@@ -96,6 +135,15 @@ class Graph:
 class UnknownNodeError(KeyError):
     def __init__(self, node_id: NodeId) -> None:
         super().__init__(f"unknown node_id: {node_id!r}")
+
+
+@dataclass(frozen=True, slots=True)
+class EotConfig:
+    """The end-of-turn tuning values Deepgram Flux should apply for
+    one specific node. Returned by `Graph.effective_eot(...)`."""
+
+    threshold: float
+    timeout_ms: int
 
 
 # ─── Guard primitives (pure) ─────────────────────────────────────────
@@ -210,6 +258,9 @@ def build_graph() -> Graph:
         slot=Slot.DESCRIPTION,
         extractor=ExtractorId.DESCRIPTION,
         transitions=(Edge(_always, NodeId.ASK_LOCATION, "description→ask_location"),),
+        # Freeform-speech slot — callers often pause mid-sentence.
+        # Extend the EOT timeout a bit so we don't cut them off.
+        eot_timeout_ms_override=1800,
     )
 
     nodes[NodeId.ASK_LOCATION] = Node(
@@ -218,6 +269,14 @@ def build_graph() -> Graph:
         slot=Slot.LOCATION,
         extractor=ExtractorId.LOCATION,
         transitions=(Edge(_always, NodeId.RESOLVE_LOCATION, "location→resolve"),),
+        # Location is the highest-pause slot — callers stop to think
+        # about how to describe where they are ("uh, near the... the
+        # beach next to the temple"). Lower the threshold + extend the
+        # timeout so Flux doesn't fire EOT during a mid-utterance
+        # pause. This is the SINGLE most common source of premature-
+        # cutoff complaints in the pilot.
+        eot_threshold_override=0.6,
+        eot_timeout_ms_override=2000,
     )
 
     # RESOLVE_LOCATION is a machine node that fans out based on the
@@ -248,6 +307,10 @@ def build_graph() -> Graph:
             Edge(_slot_equals(Slot.CONFIRMATION, "yes"), NodeId.ASK_SEVERITY, "confirmed"),
             Edge(_always, NodeId.ASK_LOCATION, "reject→ask_location"),
         ),
+        # Yes/no confirmation — short and fast; tighter EOT cuts
+        # turn latency without risking premature cutoff.
+        eot_threshold_override=0.8,
+        eot_timeout_ms_override=800,
     )
 
     nodes[NodeId.DISAMBIGUATE_LOCATION] = Node(
@@ -277,6 +340,9 @@ def build_graph() -> Graph:
         transitions=(Edge(_always, NodeId.CONFIRM_SUMMARY, "→confirm"),),
     )
 
+    # `CONFIRM_SUMMARY` reads back the whole slot bundle — the caller
+    # answers with a short yes/no. Same tight EOT as the location
+    # confirmation.
     nodes[NodeId.CONFIRM_SUMMARY] = Node(
         id=NodeId.CONFIRM_SUMMARY,
         prompt_id="confirm_summary",
@@ -287,6 +353,8 @@ def build_graph() -> Graph:
             Edge(_slot_equals(Slot.CONFIRMATION, "restart"), NodeId.START_OVER, "restart"),
             Edge(_slot_equals(Slot.CONFIRMATION, "no"), NodeId.START_OVER, "no→restart"),
         ),
+        eot_threshold_override=0.8,
+        eot_timeout_ms_override=800,
     )
 
     # START_OVER plays its own reassurance notice before re-entering
