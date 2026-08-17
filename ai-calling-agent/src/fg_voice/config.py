@@ -75,6 +75,14 @@ class Settings(BaseSettings):
     denoise_provider: Literal["krisp", "rnnoise", "none"] = "rnnoise"
     krisp_license_key: SecretStr = SecretStr("")
 
+    # ── Dual recording (§9.1 tee) ────────────────────────────
+    # S3_RECORDING_ENABLED=true wires the DualRecorder into the
+    # audio path — every call ships a raw μ-law + a clean PCM16 stream
+    # to `s3_recordings_bucket` on call end. Off by default so tests +
+    # dev deploys don't require S3 creds. Ops flips it on when the
+    # bucket lifecycle policy is in place (30-day retention per §17).
+    s3_recording_enabled: bool = False
+
     # ── Data ─────────────────────────────────────────────────
     database_url: str = "postgresql+asyncpg://fg_voice:fg_voice@localhost:55432/fg_voice"
     redis_url: str = "redis://localhost:56379/0"

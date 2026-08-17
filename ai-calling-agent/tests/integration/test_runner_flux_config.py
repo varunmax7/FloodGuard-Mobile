@@ -16,8 +16,6 @@ Coverage:
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 from fg_voice.audio.bank import AudioBank, Clip
@@ -33,7 +31,6 @@ from fg_voice.conversation.runner import (
 from fg_voice.conversation.state import CallState, NodeId
 from fg_voice.conversation.state_store import CallStateStore
 from fg_voice.pipeline.stt_flux import FluxEvent, FluxEventKind
-
 
 # ─── Test doubles ───────────────────────────────────────────────────
 
@@ -70,7 +67,9 @@ class _RecordingSink:
 
 def _empty_audio_bank() -> AudioBank:
     """Empty bank → `get(...)` returns None, runner logs + skips playback."""
-    return AudioBank(clips={}, manifest_path=None)
+    from pathlib import Path
+
+    return AudioBank(clips={}, root=Path("/tmp/nonexistent"), locale="en-IN", version="test")
 
 
 def _end_of_turn(text: str) -> InputEvent:
@@ -172,11 +171,9 @@ async def test_reconfigurer_uses_runner_defaults_for_untouched_nodes() -> None:
         ),
         flux_reconfigurer=reconfigurer,
     )
-    # Don't `await` — we only need the first reconfigure. Run in the
-    # background and cancel after the collection completes.
-    with pytest.raises((Hangup, asyncio.CancelledError, Exception)):
-        await runner.run()
-
+    # Runner catches Hangup internally; a single-event script drives
+    # ASK_INTENT and then hits the empty script → Hangup path.
+    await runner.run()
     # First call should be for ASK_INTENT with the runner defaults.
     assert reconfigurer.calls[0] == EotConfig(threshold=0.55, timeout_ms=999)
 

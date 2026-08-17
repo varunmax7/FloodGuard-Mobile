@@ -33,6 +33,10 @@ from dataclasses import dataclass, field
 from typing import Final, Literal, Protocol
 
 from fg_voice.audio.bank import AudioBank, Clip
+from fg_voice.conversation.confidence import (
+    extraction_confidence_gate,
+    stt_confidence_gate,
+)
 from fg_voice.conversation.graph import EotConfig, ExtractorId, Graph, Node
 from fg_voice.conversation.nodes import dtmf_slot_value, run_extractor
 from fg_voice.conversation.policies import (
@@ -278,9 +282,24 @@ class ConversationRunner:
             self.state.set_slot(node.slot, dtmf_slot_value(node.slot, canonical))
         else:
             slot_value = run_extractor(node.extractor, transcript, source="asr")
-            if slot_value is None or node.slot is None:
+            # Extraction confidence gate (§9.4). Below the threshold,
+            # the extractor produced a value but not confidently — the
+            # reprompt ladder is safer than persisting a guess. The
+            # gate returns fail for both None and low-confidence so a
+            # single check covers both branches.
+            extraction_gate = extraction_confidence_gate(slot_value)
+            if not extraction_gate.pass_ or node.slot is None:
+                log.info(
+                    "runner.extraction_gate.dropped",
+                    extra={
+                        "reason": extraction_gate.reason,
+                        "confidence": slot_value.confidence if slot_value else None,
+                        "node_id": node.id,
+                    },
+                )
                 self._advance_ladder(node)
                 return
+            assert slot_value is not None
             self.state.set_slot(node.slot, slot_value)
 
         target = self._first_matching_edge_or_none(node)
@@ -345,6 +364,22 @@ class ConversationRunner:
                 continue
 
             if action is FluxAction.COMMIT_TURN:
+                # STT confidence gate (§9.4). Below the threshold, the
+                # transcript is too uncertain to bother extracting —
+                # treat as no-answer and let the ladder advance to
+                # `reprompt_*_1`.
+                stt_gate = stt_confidence_gate(flux.confidence)
+                if not stt_gate.pass_:
+                    log.info(
+                        "runner.stt_gate.dropped",
+                        extra={
+                            "reason": stt_gate.reason,
+                            "confidence": flux.confidence,
+                            "node_id": node.id,
+                        },
+                    )
+                    return _NO_ANSWER
+
                 transcript = flux.transcript or ""
                 if eager is not None:
                     # Route through the coordinator so it can reuse a
