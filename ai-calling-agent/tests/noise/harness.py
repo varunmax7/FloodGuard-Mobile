@@ -295,9 +295,15 @@ def check_exit_gate(
     min_slot_accuracy_at_5db: float = 0.85,
     max_false_barge_in_rate: float = 0.02,
     max_premature_cutoff_rate: float = 0.03,
+    quality_gate_min_snr_db: float = 5.0,
 ) -> tuple[bool, list[str]]:
     """P3 exit gate check. Returns (passed, list_of_failures). Uses
-    the spec §9.5 targets as defaults."""
+    the spec §9.5 targets as defaults.
+
+    The false-barge-in + premature-cutoff limits only apply at
+    `quality_gate_min_snr_db` and above — below that, the spec says
+    "graceful DTMF fallback", i.e. the pipeline is EXPECTED to
+    degrade past those thresholds."""
     failures: list[str] = []
     for cell in cells:
         if cell.snr_db == 10.0 and cell.slot_accuracy < min_slot_accuracy_at_10db:
@@ -310,6 +316,9 @@ def check_exit_gate(
                 f"{cell.noise_type}@5dB slot_accuracy={cell.slot_accuracy:.3f} "
                 f"< target={min_slot_accuracy_at_5db}"
             )
+        # Quality gates only apply at supported SNR (>= 5 dB per spec).
+        if cell.snr_db < quality_gate_min_snr_db:
+            continue
         if cell.false_barge_in_rate > max_false_barge_in_rate:
             failures.append(
                 f"{cell.noise_type}@{cell.snr_db}dB false_barge_in_rate="
