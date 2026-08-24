@@ -29,12 +29,12 @@ _REPO_ROOT_FOR_SCRIPTS = Path(__file__).parent.parent.parent
 if str(_REPO_ROOT_FOR_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT_FOR_SCRIPTS))
 
-import pytest  # noqa: E402
-from sqlalchemy import select, update  # noqa: E402
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: E402
+import pytest
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from fg_voice.persistence.db import Base, override_engine, reset_engine  # noqa: E402
-from fg_voice.persistence.models import Report  # noqa: E402
+from fg_voice.persistence.db import Base, override_engine, reset_engine
+from fg_voice.persistence.models import Report
 
 
 @pytest.fixture
@@ -71,9 +71,7 @@ async def _seed(sm: async_sessionmaker, source_value: str) -> str:
     if source_value != "voice":
         async with sm() as session, session.begin():
             await session.execute(
-                update(Report)
-                .where(Report.short_ref == short_ref)
-                .values(source=source_value)
+                update(Report).where(Report.short_ref == short_ref).values(source=source_value)
             )
     return short_ref
 

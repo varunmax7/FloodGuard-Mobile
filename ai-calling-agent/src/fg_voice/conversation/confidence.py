@@ -108,9 +108,7 @@ def extraction_confidence_gate(slot_value: SlotValue | None) -> GateResult:
     if slot_value is None:
         return GateResult.failed("extractor_returned_none")
     if slot_value.confidence < EXTRACTION_MIN_CONFIDENCE:
-        return GateResult.failed(
-            f"extraction_confidence<{EXTRACTION_MIN_CONFIDENCE}"
-        )
+        return GateResult.failed(f"extraction_confidence<{EXTRACTION_MIN_CONFIDENCE}")
     return GateResult.ok()
 
 

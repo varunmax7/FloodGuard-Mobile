@@ -47,35 +47,46 @@ def resolver(tmp_path: Path) -> GazetteerResolver:
             {
                 "pois": [
                     {
-                        "name": "RK Beach", "kind": "beach",
-                        "district": "Visakhapatnam", "state": "Andhra Pradesh",
+                        "name": "RK Beach",
+                        "kind": "beach",
+                        "district": "Visakhapatnam",
+                        "state": "Andhra Pradesh",
                         "variants": ["Ramakrishna Beach"],
-                        "lat": 17.71, "lon": 83.32,
+                        "lat": 17.71,
+                        "lon": 83.32,
                     },
                     {
-                        "name": "Kakinada Beach", "kind": "beach",
-                        "district": "Kakinada", "state": "Andhra Pradesh",
-                        "variants": [], "lat": 16.99, "lon": 82.25,
+                        "name": "Kakinada Beach",
+                        "kind": "beach",
+                        "district": "Kakinada",
+                        "state": "Andhra Pradesh",
+                        "variants": [],
+                        "lat": 16.99,
+                        "lon": 82.25,
                     },
                     {
-                        "name": "Bheemili Beach", "kind": "beach",
-                        "district": "Visakhapatnam", "state": "Andhra Pradesh",
+                        "name": "Bheemili Beach",
+                        "kind": "beach",
+                        "district": "Visakhapatnam",
+                        "state": "Andhra Pradesh",
                         "variants": ["Bheemunipatnam"],
-                        "lat": 17.89, "lon": 83.43,
+                        "lat": 17.89,
+                        "lon": 83.43,
                     },
                     {
-                        "name": "Bapatla Beach", "kind": "beach",
-                        "district": "Bapatla", "state": "Andhra Pradesh",
+                        "name": "Bapatla Beach",
+                        "kind": "beach",
+                        "district": "Bapatla",
+                        "state": "Andhra Pradesh",
                         "variants": ["Suryalanka"],
-                        "lat": 15.85, "lon": 80.53,
+                        "lat": 15.85,
+                        "lon": 80.53,
                     },
                 ]
             }
         )
     )
-    gaz = load_full_gazetteer(
-        districts_path=districts, mandals_path=None, pois_path=pois
-    )
+    gaz = load_full_gazetteer(districts_path=districts, mandals_path=None, pois_path=pois)
     return GazetteerResolver(gaz)
 
 

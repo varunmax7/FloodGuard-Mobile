@@ -42,11 +42,25 @@ _NON_LETTER = re.compile(r"[^a-z]", flags=re.ASCII)
 # here bites match recall, not precision — a wrong match still has
 # to clear the fuzzy-score threshold downstream.
 _CONSONANT_GROUPS: Final[dict[str, str]] = {
-    "b": "B", "p": "B", "v": "B", "f": "B", "w": "B",  # labials
-    "c": "K", "g": "K", "j": "K", "k": "K", "q": "K", "x": "K",  # velars
-    "d": "T", "t": "T", "z": "T", "s": "T",  # dentals + sibilants
-    "l": "L", "r": "L",  # liquids (Indian retroflex/lateral confusion)
-    "m": "N", "n": "N",  # nasals
+    "b": "B",
+    "p": "B",
+    "v": "B",
+    "f": "B",
+    "w": "B",  # labials
+    "c": "K",
+    "g": "K",
+    "j": "K",
+    "k": "K",
+    "q": "K",
+    "x": "K",  # velars
+    "d": "T",
+    "t": "T",
+    "z": "T",
+    "s": "T",  # dentals + sibilants
+    "l": "L",
+    "r": "L",  # liquids (Indian retroflex/lateral confusion)
+    "m": "N",
+    "n": "N",  # nasals
     "h": "H",
     "y": "Y",
 }

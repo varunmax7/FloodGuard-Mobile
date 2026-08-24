@@ -43,7 +43,7 @@ implementation, defaults to `rnnoise` (the spectral-gate fallback) in
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Final, Protocol, runtime_checkable
+from typing import Any, Final, Protocol, runtime_checkable
 
 import numpy as np
 
@@ -148,7 +148,7 @@ class SpectralGateDenoiser:
     noise types benefit; anything that regresses the sweep gets dropped."""
 
     _frame_count: int = 0
-    _noise_estimate: np.ndarray | None = field(default=None, init=False)
+    _noise_estimate: np.ndarray[Any, Any] | None = field(default=None, init=False)
 
     def process_pcm16(self, pcm16: bytes) -> bytes:
         if len(pcm16) == 0:

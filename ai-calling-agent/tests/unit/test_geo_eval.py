@@ -11,14 +11,14 @@ _REPO_ROOT_FOR_SCRIPTS = Path(__file__).parent.parent.parent
 if str(_REPO_ROOT_FOR_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT_FOR_SCRIPTS))
 
-from scripts.run_geo_eval import (  # noqa: E402
+from scripts.run_geo_eval import (
     _read_fragments,
     check_exit_gate,
     run_eval,
 )
 
-from fg_voice.rag.gazetteer import load_full_gazetteer  # noqa: E402
-from fg_voice.rag.resolve_place import GazetteerResolver  # noqa: E402
+from fg_voice.rag.gazetteer import load_full_gazetteer
+from fg_voice.rag.resolve_place import GazetteerResolver
 
 _REPO_ROOT = Path(__file__).parent.parent.parent
 

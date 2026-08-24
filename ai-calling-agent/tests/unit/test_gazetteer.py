@@ -88,15 +88,7 @@ def test_load_districts_parses_variants(tiny_districts: Path) -> None:
 
 def test_load_pois_rejects_unknown_kind(tmp_path: Path) -> None:
     path = tmp_path / "bad.json"
-    path.write_text(
-        json.dumps(
-            {
-                "pois": [
-                    {"name": "X", "kind": "unicorn", "state": "AP"}
-                ]
-            }
-        )
-    )
+    path.write_text(json.dumps({"pois": [{"name": "X", "kind": "unicorn", "state": "AP"}]}))
     with pytest.raises(ValueError, match="unknown kind"):
         load_pois(path)
 
@@ -163,13 +155,23 @@ def test_gazetteer_entry_display_shapes() -> None:
     """Districts render as 'District, State'; POIs as
     'Name, District, State'; POIs without a district as 'Name, State'."""
     d = GazetteerEntry(
-        canonical_name="Kakinada", matched_name="Kakinada", kind="district",
-        district=None, state="Andhra Pradesh", lat=None, lon=None,
+        canonical_name="Kakinada",
+        matched_name="Kakinada",
+        kind="district",
+        district=None,
+        state="Andhra Pradesh",
+        lat=None,
+        lon=None,
     )
     assert d.display == "Kakinada, Andhra Pradesh"
     p = GazetteerEntry(
-        canonical_name="RK Beach", matched_name="RK Beach", kind="beach",
-        district="Visakhapatnam", state="Andhra Pradesh", lat=17.71, lon=83.32,
+        canonical_name="RK Beach",
+        matched_name="RK Beach",
+        kind="beach",
+        district="Visakhapatnam",
+        state="Andhra Pradesh",
+        lat=17.71,
+        lon=83.32,
     )
     assert p.display == "RK Beach, Visakhapatnam, Andhra Pradesh"
 

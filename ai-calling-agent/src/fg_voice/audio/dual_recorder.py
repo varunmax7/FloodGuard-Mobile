@@ -70,8 +70,9 @@ class S3Uploader(Protocol):
     """Async put-object. Production wraps aioboto3; tests use a
     recorder that appends to an in-memory list."""
 
-    async def put_object(self, *, bucket: str, key: str, body: bytes, content_type: str) -> None:
-        ...
+    async def put_object(
+        self, *, bucket: str, key: str, body: bytes, content_type: str
+    ) -> None: ...
 
 
 @dataclass(slots=True)

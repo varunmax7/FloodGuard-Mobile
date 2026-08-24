@@ -55,16 +55,12 @@ async def _run(default_source: str, batch_size: int, apply: bool) -> int:
         updated_total = 0
         while updated_total < total:
             picked_ids = (
-                await session.scalars(
-                    select(Report.report_id).where(needs).limit(batch_size)
-                )
+                await session.scalars(select(Report.report_id).where(needs).limit(batch_size))
             ).all()
             if not picked_ids:
                 break
             result = await session.execute(
-                update(Report)
-                .where(Report.report_id.in_(picked_ids))
-                .values(source=default_source)
+                update(Report).where(Report.report_id.in_(picked_ids)).values(source=default_source)
             )
             batch_count = result.rowcount or len(picked_ids)
             updated_total += batch_count

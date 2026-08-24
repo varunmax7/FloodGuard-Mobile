@@ -84,6 +84,12 @@ class Report(Base):
     qa_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     qa_notes: Mapped[str | None] = mapped_column(String(1000))
 
+    # DPDP Act 2023 — set when a caller exercises the right of erasure.
+    # PII fields (description, location_raw, caller_hash) are zeroed;
+    # the anonymised hazard record (hazard_type, severity, location_resolved)
+    # is retained as legitimate public-safety data. See §17.2.
+    pii_erased_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now_utc)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now_utc, onupdate=_now_utc

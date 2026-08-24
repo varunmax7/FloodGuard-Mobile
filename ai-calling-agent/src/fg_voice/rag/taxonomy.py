@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from typing import Final, Literal
+from typing import Any, Final, Literal
 
 import numpy as np
 
@@ -37,9 +37,7 @@ import numpy as np
 # from there — the layered contract puts rag/ and extraction/ at
 # the same tier, so the two modules cannot cross-import. Any change
 # to the underlying vocabulary needs to land in both places.
-HazardTypeValue = Literal[
-    "storm", "sludge_oil", "abnormal_tide", "erosion", "other"
-]
+HazardTypeValue = Literal["storm", "sludge_oil", "abnormal_tide", "erosion", "other"]
 
 
 # The labelled corpus. Kept as a plain dict-of-lists so a new
@@ -184,8 +182,8 @@ class HazardClassifier:
     corpus: tuple[HazardExample, ...]
     k: int = 5
     _vocab: dict[str, int] | None = None
-    _example_vecs: np.ndarray | None = None
-    _idf: np.ndarray | None = None
+    _example_vecs: np.ndarray[Any, Any] | None = None
+    _idf: np.ndarray[Any, Any] | None = None
     _example_labels: tuple[HazardTypeValue, ...] = ()
 
     def __post_init__(self) -> None:
@@ -229,7 +227,7 @@ class HazardClassifier:
         self._idf = idf
         self._example_labels = tuple(example_labels)
 
-    def _vectorise(self, text: str) -> np.ndarray:
+    def _vectorise(self, text: str) -> np.ndarray[Any, Any]:
         assert self._vocab is not None and self._idf is not None
         grams = _char_ngrams(text)
         tf: Counter[str] = Counter(grams)

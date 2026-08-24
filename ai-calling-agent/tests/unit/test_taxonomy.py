@@ -58,9 +58,7 @@ def test_corpus_size_reasonable() -> None:
         ("something else is happening", "other"),
     ],
 )
-def test_classifier_recovers_labels(
-    classifier: HazardClassifier, text: str, expected: str
-) -> None:
+def test_classifier_recovers_labels(classifier: HazardClassifier, text: str, expected: str) -> None:
     result = classifier.classify(text)
     assert result.label == expected, (
         f"expected {expected} for {text!r}, got {result.label} (votes={result.votes})"

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import signal
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -13,11 +14,13 @@ from fastapi import FastAPI
 
 from fg_voice import __version__
 from fg_voice.api import routes_reports, routes_voice
+from fg_voice.api.routes_console import router as console_router
 from fg_voice.api.routes_dlq import router as dlq_router
 from fg_voice.api.routes_gather import router as gather_router
 from fg_voice.api.routes_health import router as health_router
 from fg_voice.api.routes_media import router as media_router
 from fg_voice.api.routes_pin import router as pin_router
+from fg_voice.api.routes_privacy import router as privacy_router
 from fg_voice.api.routes_reports import router as reports_router
 from fg_voice.api.routes_voice import router as voice_router
 from fg_voice.config import Settings, get_settings
@@ -28,6 +31,7 @@ from fg_voice.enrichment.tasks.dedupe import DedupeStrategy
 from fg_voice.enrichment.tasks.extract import LLMExtractor
 from fg_voice.enrichment.tasks.geocode import Geocoder
 from fg_voice.obs.logging import configure_logging, get_logger
+from fg_voice.obs.tracing import configure_tracing
 from fg_voice.persistence.alerts import (
     AlertBackend,
     AlertDispatcher,
@@ -41,6 +45,7 @@ from fg_voice.persistence.dispatchers import ChainDispatcher, PubSubDispatcher
 from fg_voice.persistence.dlq_monitor import DlqMonitor
 from fg_voice.persistence.relay import Dispatcher, LogDispatcher, OutboxRelay
 from fg_voice.telephony.twilio_sms import TwilioSmsSender
+from fg_voice.utils.drain import mark_draining
 
 log = get_logger(__name__)
 
@@ -62,6 +67,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     settings = get_settings()
     configure_logging(settings.fg_log_level, service="fg_voice")
+    configure_tracing(
+        service_name="fg_voice",
+        environment=settings.fg_env,
+        agent_version=settings.fg_agent_version,
+    )
     settings.require_production_secrets()
     log.info(
         "fg_voice.starting",
@@ -81,6 +91,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "fg_voice.admin_auth_disabled",
             note="ADMIN_API_KEY is empty; /api/v1/reports* are unauthenticated",
         )
+
+    # ── Graceful drain on SIGTERM (spec §14.3) ───────────────────
+    # ECS sends SIGTERM to give the task a chance to drain in-flight
+    # calls before SIGKILL (stopTimeout: 300). We flip a process-wide
+    # flag; /voice/inbound consults it and returns the fallback TwiML
+    # instead of connecting the caller to a stream that's about to
+    # die. In-flight WebSockets are unaffected and complete naturally.
+    #
+    # Only bind when running under an asyncio loop that supports
+    # add_signal_handler (POSIX). On Windows / non-signal contexts
+    # (some tests) this is a no-op — the flag can be flipped manually
+    # via `mark_draining()`.
+    try:
+        loop = asyncio.get_running_loop()
+
+        def _on_sigterm() -> None:
+            log.warning("fg_voice.sigterm.received", note="draining new-call intake")
+            mark_draining()
+
+        loop.add_signal_handler(signal.SIGTERM, _on_sigterm)
+        loop.add_signal_handler(signal.SIGINT, _on_sigterm)
+    except (NotImplementedError, RuntimeError):
+        # Windows / non-loop test contexts. Not fatal — surge-mode
+        # test paths flip the flag directly.
+        pass
 
     if settings.migrate_on_boot:
         # Run before the relay starts so the relay's first drain never
@@ -353,3 +388,5 @@ app.include_router(gather_router)
 app.include_router(reports_router)
 app.include_router(dlq_router)
 app.include_router(pin_router)
+app.include_router(console_router)
+app.include_router(privacy_router)

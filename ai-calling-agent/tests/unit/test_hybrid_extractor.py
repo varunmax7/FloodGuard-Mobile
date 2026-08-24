@@ -63,9 +63,7 @@ class _SlowLlmProvider:
 async def test_llm_success_returns_llm_value() -> None:
     provider = _ScriptedLlmProvider(
         responses=[
-            LlmExtractionResult(
-                slot="intent", value="yes", confidence=0.92, provider="anthropic"
-            )
+            LlmExtractionResult(slot="intent", value="yes", confidence=0.92, provider="anthropic")
         ]
     )
     hybrid = HybridExtractor(provider=provider)

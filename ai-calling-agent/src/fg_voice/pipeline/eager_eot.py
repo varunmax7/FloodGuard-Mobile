@@ -148,10 +148,7 @@ class EagerEotCoordinator[ExtractionT]:
                 transcript = (event.transcript or "").strip()
                 # Case (a): speculation was correct — the final
                 # transcript matches what we speculated on. Reuse.
-                if (
-                    self._speculation is not None
-                    and self._speculation.transcript == transcript
-                ):
+                if self._speculation is not None and self._speculation.transcript == transcript:
                     task = self._speculation.task
                     self._speculation = None
                     try:

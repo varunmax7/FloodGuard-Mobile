@@ -63,7 +63,6 @@ jobs:
 
       - name: pip-audit (dependency vulnerabilities)
         run: uv run pip-audit --strict --skip-editable
-        continue-on-error: true   # advisory-only in P0; wired to blocking in P7
 
   docker-build:
     name: docker build (${{ matrix.image }})

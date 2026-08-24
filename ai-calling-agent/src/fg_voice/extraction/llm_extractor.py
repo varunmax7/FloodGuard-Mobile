@@ -215,9 +215,7 @@ class BedrockLlmProvider:
                         "cache_control": {"type": "ephemeral"},
                     }
                 ],
-                "messages": [
-                    {"role": "user", "content": _user_prompt_for(slot, utterance)}
-                ],
+                "messages": [{"role": "user", "content": _user_prompt_for(slot, utterance)}],
             }
         )
         try:

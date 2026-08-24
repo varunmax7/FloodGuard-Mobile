@@ -158,7 +158,7 @@ async def default_connector(
         connect(url, additional_headers=headers),
         timeout=timeout_sec,
     )
-    return connection  # type: ignore[return-value]
+    return connection
 
 
 @dataclass(slots=True)

@@ -178,9 +178,7 @@ async def test_buffer_cap_enforced():
 class _FailingUploader:
     calls: list[tuple[str, str]] = field(default_factory=list)
 
-    async def put_object(
-        self, *, bucket: str, key: str, body: bytes, content_type: str
-    ) -> None:
+    async def put_object(self, *, bucket: str, key: str, body: bytes, content_type: str) -> None:
         self.calls.append((bucket, key))
         raise RuntimeError("s3 gone")
 

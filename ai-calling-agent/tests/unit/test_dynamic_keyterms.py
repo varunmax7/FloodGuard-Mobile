@@ -39,19 +39,31 @@ def gazetteer(tmp_path: Path):
             {
                 "pois": [
                     {
-                        "name": "RK Beach", "kind": "beach",
-                        "district": "Visakhapatnam", "state": "Andhra Pradesh",
-                        "variants": ["Ramakrishna Beach"], "lat": 17.7, "lon": 83.3,
+                        "name": "RK Beach",
+                        "kind": "beach",
+                        "district": "Visakhapatnam",
+                        "state": "Andhra Pradesh",
+                        "variants": ["Ramakrishna Beach"],
+                        "lat": 17.7,
+                        "lon": 83.3,
                     },
                     {
-                        "name": "Kakinada Beach", "kind": "beach",
-                        "district": "Kakinada", "state": "Andhra Pradesh",
-                        "variants": [], "lat": 17.0, "lon": 82.2,
+                        "name": "Kakinada Beach",
+                        "kind": "beach",
+                        "district": "Kakinada",
+                        "state": "Andhra Pradesh",
+                        "variants": [],
+                        "lat": 17.0,
+                        "lon": 82.2,
                     },
                     {
-                        "name": "Bheemili Beach", "kind": "beach",
-                        "district": "Visakhapatnam", "state": "Andhra Pradesh",
-                        "variants": [], "lat": 17.9, "lon": 83.4,
+                        "name": "Bheemili Beach",
+                        "kind": "beach",
+                        "district": "Visakhapatnam",
+                        "state": "Andhra Pradesh",
+                        "variants": [],
+                        "lat": 17.9,
+                        "lon": 83.4,
                     },
                 ]
             }
@@ -80,9 +92,7 @@ def test_state_prior_adds_all_state_places(gazetteer) -> None:
     dynamic = build_dynamic_keyterms(gazetteer=gazetteer, prior_state="Andhra Pradesh")
     lower = {t.lower() for t in dynamic}
     # At least one AP place should surface.
-    assert any(
-        p in lower for p in ("kakinada", "visakhapatnam", "rk beach", "bheemili beach")
-    )
+    assert any(p in lower for p in ("kakinada", "visakhapatnam", "rk beach", "bheemili beach"))
 
 
 def test_dynamic_keyterms_respects_cap(gazetteer) -> None:

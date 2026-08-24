@@ -35,12 +35,12 @@ from typing import Final, Protocol
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from fg_voice.audio.codec import (  # noqa: E402
+from fg_voice.audio.codec import (
     TWILIO_SAMPLE_RATE_HZ,
     pcm16_to_ulaw,
     ulaw_silence,
 )
-from fg_voice.conversation.prompt_bank import Prompt, load_prompt_bank  # noqa: E402
+from fg_voice.conversation.prompt_bank import Prompt, load_prompt_bank
 
 # Estimating clip duration for the silence engine: normal English
 # spoken by a TTS voice averages ~2.5 words/second → 400 ms/word. Round

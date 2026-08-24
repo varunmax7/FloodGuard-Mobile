@@ -52,9 +52,7 @@ def _read_fragments(path: Path) -> list[dict]:
     return payload["fragments"]
 
 
-def _run_trial(
-    resolver: GazetteerResolver, fragment: dict
-) -> TrialOutcome:
+def _run_trial(resolver: GazetteerResolver, fragment: dict) -> TrialOutcome:
     prior = None
     if fragment.get("prior_district") or fragment.get("prior_state"):
         prior = GeographicPrior(
@@ -87,9 +85,7 @@ def run_eval(
     outcomes = [_run_trial(resolver, f) for f in fragments]
     accuracy = sum(1 for o in outcomes if o.correct) / len(outcomes)
     high_conf = [o for o in outcomes if o.high_confidence]
-    accuracy_hc = (
-        sum(1 for o in high_conf if o.correct) / len(high_conf) if high_conf else 0.0
-    )
+    accuracy_hc = sum(1 for o in high_conf if o.correct) / len(high_conf) if high_conf else 0.0
     confidently_wrong = sum(1 for o in high_conf if not o.correct) / len(outcomes)
     latencies = sorted(o.latency_ms for o in outcomes)
     p95_idx = max(0, int(len(latencies) * 0.95) - 1)
@@ -126,18 +122,18 @@ def check_exit_gate(
             f"> max={max_confidently_wrong}"
         )
     if stats["resolve_p95_ms"] > max_p95_ms:
-        failures.append(
-            f"resolve_p95_ms={stats['resolve_p95_ms']:.2f} > max={max_p95_ms}"
-        )
+        failures.append(f"resolve_p95_ms={stats['resolve_p95_ms']:.2f} > max={max_p95_ms}")
     return (len(failures) == 0, failures)
 
 
 def _print_report(outcomes: list[TrialOutcome], stats: dict[str, float]) -> None:
     print(f"n={stats['n']}")
     print(f"accuracy: {stats['accuracy']:.3f}")
-    print(f"accuracy_at_high_confidence (>= {_HIGH_CONF_CUTOFF}): "
-          f"{stats['accuracy_at_high_confidence']:.3f} "
-          f"({stats['high_confidence_count']} of {stats['n']})")
+    print(
+        f"accuracy_at_high_confidence (>= {_HIGH_CONF_CUTOFF}): "
+        f"{stats['accuracy_at_high_confidence']:.3f} "
+        f"({stats['high_confidence_count']} of {stats['n']})"
+    )
     print(f"confidently_wrong_rate: {stats['confidently_wrong_rate']:.3f}")
     print(f"resolve_p95_ms: {stats['resolve_p95_ms']:.2f}")
     print()

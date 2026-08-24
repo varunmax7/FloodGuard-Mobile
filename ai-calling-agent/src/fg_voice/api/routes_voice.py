@@ -6,7 +6,7 @@ else. See CLAUDE.md invariant + spec §17.3."""
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Protocol
 
 from fastapi import APIRouter, Form, Header, HTTPException, Request, status
 from fastapi.responses import Response
@@ -23,6 +23,7 @@ from fg_voice.telephony.twilio_twiml import (
     fallback_twiml,
     gather_redirect_twiml,
 )
+from fg_voice.utils.drain import is_draining
 from fg_voice.utils.hashing import hash_msisdn
 
 log = get_logger(__name__)
@@ -36,19 +37,18 @@ _session_store_provider = get_session_store
 # Left as None in dev / when SMS is off — the status webhook then just
 # logs and skips. Kept module-scoped so tests can inject a RecordingSender-
 # backed service without patching the lifespan.
-_sms_pin_offer_service: "SmsPinOfferServiceLike | None" = None
+_sms_pin_offer_service: SmsPinOfferServiceLike | None = None
 
 
-class SmsPinOfferServiceLike:
+class SmsPinOfferServiceLike(Protocol):
     """Duck-typed reference (avoid an enrichment→api import cycle).
     Any object with `.maybe_send(*, call_sid, to_number)` satisfies
     this — the real impl is `enrichment.sms_pin_offer.SmsPinOfferService`."""
 
-    async def maybe_send(self, *, call_sid: str, to_number: str) -> bool:  # pragma: no cover
-        ...
+    async def maybe_send(self, *, call_sid: str, to_number: str) -> bool: ...
 
 
-def set_sms_pin_offer_service(service: "SmsPinOfferServiceLike | None") -> None:
+def set_sms_pin_offer_service(service: SmsPinOfferServiceLike | None) -> None:
     global _sms_pin_offer_service
     _sms_pin_offer_service = service
 
@@ -86,6 +86,18 @@ async def inbound(
     form = await request.form()
     params: dict[str, str] = {k: str(v) for k, v in form.items()}
     await _validate(request, x_twilio_signature, params)
+
+    # Drain check (spec §14.3): if a SIGTERM fired, refuse to hand
+    # this call to a worker that's about to die. Return the static
+    # fallback TwiML so the caller gets the SMS-with-web-form path
+    # instead of a dropped call.
+    if is_draining():
+        log.warning(
+            "voice.inbound.drained",
+            call_sid=params.get("CallSid", ""),
+            note="task draining after SIGTERM; returning fallback TwiML",
+        )
+        return Response(content=fallback_twiml(), media_type="application/xml")
 
     settings = get_settings()
     call_sid = params.get("CallSid", "")
@@ -157,10 +169,8 @@ async def status_callback(
             # in this stack frame only per CLAUDE.md invariant #6.
             to_number = form_params.get("From", "")
             try:
-                await _sms_pin_offer_service.maybe_send(
-                    call_sid=CallSid, to_number=to_number
-                )
-            except Exception:  # noqa: BLE001 — belt + suspenders around the service's own try/except
+                await _sms_pin_offer_service.maybe_send(call_sid=CallSid, to_number=to_number)
+            except Exception:
                 log.exception("voice.sms_pin_offer.unexpected_error", call_sid=CallSid)
     else:
         log.info("voice.status", call_sid=CallSid, status=CallStatus)

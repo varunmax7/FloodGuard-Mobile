@@ -156,10 +156,7 @@ class CorpusManifest:
             )
             for u in raw["utterances"]
         ]
-        noises = [
-            NoiseSpec(type=n["type"], wav_path=root / n["wav"])
-            for n in raw["noise_samples"]
-        ]
+        noises = [NoiseSpec(type=n["type"], wav_path=root / n["wav"]) for n in raw["noise_samples"]]
         return cls(utterances=utterances, noise_samples=noises)
 
 

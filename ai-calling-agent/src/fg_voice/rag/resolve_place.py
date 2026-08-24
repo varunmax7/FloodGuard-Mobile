@@ -259,13 +259,9 @@ class GazetteerResolver:
             k = f"{entry.canonical_name}|{entry.district}|{entry.state}"
             if k in seen:
                 continue
-            best_score = fuzz.WRatio(
-                cleaned_fragment, normalise_ascii(entry.matched_name)
-            )
+            best_score = fuzz.WRatio(cleaned_fragment, normalise_ascii(entry.matched_name))
             if entry.matched_name != entry.canonical_name:
-                cscore = fuzz.WRatio(
-                    cleaned_fragment, normalise_ascii(entry.canonical_name)
-                )
+                cscore = fuzz.WRatio(cleaned_fragment, normalise_ascii(entry.canonical_name))
                 best_score = max(best_score, cscore)
             if best_score < _FUZZY_MIN_SCORE:
                 continue

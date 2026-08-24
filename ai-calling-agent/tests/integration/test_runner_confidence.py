@@ -148,19 +148,21 @@ async def test_stt_none_confidence_treated_as_pass() -> None:
     reject."""
     graph = build_graph()
     bank = load_prompt_bank()
-    scripted = _ScriptedInput([
-        InputEvent(
-            kind="flux",
-            flux_event=FluxEvent(
-                kind=FluxEventKind.END_OF_TURN,
-                transcript="yes",
-                confidence=None,
+    scripted = _ScriptedInput(
+        [
+            InputEvent(
+                kind="flux",
+                flux_event=FluxEvent(
+                    kind=FluxEventKind.END_OF_TURN,
+                    transcript="yes",
+                    confidence=None,
+                ),
             ),
-        ),
-        _eot("storm"),
-        _eot("tree down"),
-        _eot("kakinada"),
-    ])
+            _eot("storm"),
+            _eot("tree down"),
+            _eot("kakinada"),
+        ]
+    )
     runner = ConversationRunner(
         call_state=CallState(call_sid="CA3", caller_hash="h"),
         graph=graph,

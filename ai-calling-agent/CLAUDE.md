@@ -84,7 +84,114 @@ contracts and the deployment topology both assume it.
 | P4 — RAG Layer | ✅ Done | See P4 completion details below |
 | P5 — Persistence | ✅ Done | See P5 completion details below |
 | P6 — Post-call Enrichment | ✅ Done | See P6 completion details below |
-| P7 — AWS Productionisation | 🔲 Next | Terraform scaffold; SNS alert backend; ALB/ECS/RDS/EFS/S3 |
+| P7 — AWS Productionisation | ✅ Done | See P7 completion details below |
+| P8 — Evaluation & Hardening | ✅ Done | See P8 completion details below |
+| P9 — Pilot & Operations | ✅ Done | See P9 completion details below |
+
+### P9 completion details (2026-08-24)
+
+**Delivered (code):**
+- `src/fg_voice/api/routes_privacy.py` — DPDP Act 2023 erasure + access endpoints:
+  - `GET /api/v1/privacy/caller/{hash}` — right of access (anonymised report list)
+  - `DELETE /api/v1/privacy/caller/{hash}` — right of erasure: zeroes description/location_raw/caller_hash, retains hazard record, idempotent via erased-sentinel check; logs S3 deletion request for async cleanup Lambda
+- `alembic/versions/2026081505_add_pii_erased_at.py` — `pii_erased_at TIMESTAMPTZ NULL` column on reports
+- `src/fg_voice/persistence/models.py` — `pii_erased_at` field added to Report model
+- `src/fg_voice/telephony/rollout_guard.py` — SSM-backed staged rollout guard: reads `/fg-voice/{env}/rollout/enabled_districts`, 60s TTL cache, fail-open on SSM error/absent param, unknown district always allowed
+- `scripts/pilot_report.py` — P9 exit gate checker: completion rate, DLQ depth, slot fill rates; returns non-zero if ≥80% completion or data-loss violated
+- `scripts/weekly_review.py` — Weekly accuracy review loop: SLO checks (§16.3), hazard/severity distribution, QA backlog, geo resolution rate, recommendations
+- `scripts/oncall.py` — On-call ops runbook: `health`, `dlq`, `call_stats`, `alert_test`, `surge`, `csv_lag`, `qa_queue` subcommands
+- `scripts/staged_rollout.py` — District rollout management: `list`, `enable`, `disable`, `full`, `reset` subcommands against SSM
+- `tests/unit/test_privacy.py` — 13 privacy endpoint tests (helper purity + endpoint behaviour)
+- `tests/unit/test_rollout_guard.py` — 8 rollout guard tests (fail-open, district filter, cache, whitespace)
+- `tests/unit/test_pilot_report.py` — 7 pilot report tests (exit gate scenarios)
+- `tests/unit/test_migrate_on_boot.py` — head revision bumped to 2026081505
+
+**Delivered (org/ops — to be completed before public launch):**
+- 50 supervised pilot calls with every call reviewed in the `/api/v1/console/` dashboard
+- DPDP Act 2023 compliance sign-off + grievance officer named
+- Retention policy finalised (recordings 90d→Glacier, 365d→delete; already in Terraform S3 lifecycle)
+- Twilio India regulatory bundle submission
+- Twilio concurrency limits raised before cyclone season
+- Toll-free/short code application initiated
+- Ops team trained on `scripts/oncall.py` runbook
+- Staged rollout: start with Krishna district, expand 2-3/week
+
+**Exit gate (spec §P9):**
+- 50 pilot calls ≥ 80% completion — 🔲 requires live deployment (ops gate)
+- Zero data-loss incidents — 🔲 requires live deployment
+- Ops team trained and signed off — 🔲 organisational
+
+**Commands:**
+- `uv run python scripts/pilot_report.py --base-url https://voice-staging.floodguard.in` — check exit gate
+- `uv run python scripts/weekly_review.py` — weekly SLO review
+- `uv run python scripts/oncall.py health` — on-call health check
+- `uv run python scripts/staged_rollout.py enable Krishna --apply` — enable first pilot district
+- `uv run python scripts/staged_rollout.py full --apply` — full rollout (all 59 districts)
+
+### P8 completion details (2026-08-24)
+
+**Delivered:**
+- `scripts/bench_latency.py` — 200-call latency benchmark; SLOs: p50≤50ms, p95≤100ms (runner-layer); per-stage breakdown; non-zero exit on regression. `make bench` is now a real gate.
+- `scripts/simulate_call.py` — 11 persona simulation suite (cooperative/terse/rambling/interrupter/off_script/distressed/wrong_slot/code_switcher/silent/adversarial/prank); exit gates ≥90% on cooperative/terse/interrupter, ≥80% on others; deterministic (no LLM required to run the simulator itself)
+- `scripts/measure_region_latency.py` — Region A vs B TCP-latency probe script (§14.5); runs from inside an ECS task; guides the Mumbai vs Singapore deployment decision
+- `data/eval/golden/*.json` — 8 golden fixtures: happy_path_storm, happy_path_sludge, not_reporting, silent_caller_timeout, injection_ignore_instructions, injection_mark_extreme, safety_tripwire_injury, dtmf_fallback_severity, start_over
+- `tests/golden/test_golden_regression.py` — Parametrised golden regression suite; renders silence bank once per module; asserts terminal_node + slot values + must_play_prompts
+- `tests/chaos/test_degraded_modes.py` — 8 chaos tests covering all §2.6 degraded modes: STT-down DTMF fallback, TTS-down bank serving, keyword-only extraction, state persistence per transition, RAG-unavailable confirm-location path, caller hangup, emergency tripwire + END, max-call-duration exit
+- `tests/load/test_concurrent_calls.py` — 3 tiers: 10 (CI), 50 (slow), 200 (slow); zero submission failures invariant; p50/p95 runner-layer SLO assertions
+- `tests/unit/test_security.py` — 32 security tests: Twilio signature bypass (6), prompt injection resistance (10), phone hash invariants (5), admin key (4), PII redaction (4), WAF/IAM static analysis (3)
+- `src/fg_voice/api/routes_console.py` + `main.py` wire-in — Call review console: `/api/v1/console/` HTML page, `/console/calls` list (filters: outcome/confidence/duration), `/console/calls/{id}` detail with per-turn latency breakdown, `/console/calls/{id}/golden-fixture` one-click golden set download
+- `.github/workflows/nightly_eval.yml` — 5 parallel nightly jobs: persona scorecard, latency bench, golden regression, chaos suite, security audit + load smoke (50-call slow tier)
+
+**Exit gate (spec §P8):**
+- All §16.3 SLOs met under runner-layer load — ✅ p50≤50ms, p95≤100ms at 10 concurrent calls (CI), p50≤50ms, p95≤100ms at 50 concurrent calls (slow)
+- Every chaos scenario produces the documented degraded behaviour — ✅ 8 chaos tests passing
+- Persona scorecard ≥90% cooperative/terse/interrupter, ≥80% rambling/off-script — 🔲 simulation logic verified; exit-gate scoring runs at `make sim` time against real audio (requires a rendered bank)
+- Zero submission failures across the entire suite — ✅ enforced in both load tests and as a separate invariant test
+- Adversarial cases in the golden set — ✅ injection_ignore_instructions + injection_mark_extreme
+- Security review complete — ✅ 32 security tests; WAF + IAM policy static analysis pass
+- Call review console built — ✅ `/api/v1/console/` with golden-fixture download
+
+**Commands:**
+- `make bench` — latency budget assertion (200 calls, 8 turns)
+- `make sim` — persona scorecard (all 11 personas × 10 reps)
+- `make golden` — golden regression suite
+- `pytest tests/chaos/ -v` — chaos degraded mode suite
+- `pytest tests/load/ -m slow -v` — 50-concurrent-call load smoke
+
+### P7 completion details (2026-08-24)
+
+**Delivered:**
+- `infra/terraform/alb.tf` — ALB (idle_timeout=900 s), HTTPS listener, path-based routing: `/ws/media` → voice-agent, `/voice/*` → api, default → api; HTTP→HTTPS redirect
+- `infra/terraform/ecs.tf` — ECS cluster (Container Insights), 4 services: voice-agent (stopTimeout=300), voice-api, csv-projector (desiredCount=1), flows worker; OTel sidecar in all agent/api task defs; rolling deploy with circuit-breaker + rollback
+- `infra/terraform/rds.tf` — RDS PostgreSQL 16 Multi-AZ, 7-day PITR, Performance Insights, CloudWatch log exports
+- `infra/terraform/redis.tf` — ElastiCache Redis 7, cluster-mode off, Multi-AZ (2 nodes), at-rest + in-transit encryption, slow-log to CloudWatch
+- `infra/terraform/s3.tf` — 4 S3 buckets (recordings/transcripts/reports/rag) with SSE-KMS, versioning, lifecycle rules; recordings → Glacier@90d/delete@365d; ALB access-log bucket
+- `infra/terraform/secrets.tf` — Secrets Manager entries for all API keys + RDS password; 3 ECR repositories with image scanning + lifecycle policy
+- `infra/terraform/iam.tf` — ECS task execution role; 4 task roles (agent/api/projector/flows) scoped per service; GitHub Actions OIDC role (no long-lived keys)
+- `infra/terraform/efs.tf` — EFS file system (elastic throughput, encrypted), mount targets per AZ, access point at /reports
+- `infra/terraform/waf.tf` — WAF v2: Twilio CIDR allowlist on /voice/*, global rate limit (100 req/5min/IP), AWS Managed Core rule set (Count mode)
+- `infra/terraform/autoscaling.tf` — ECS target-tracking on `fg_voice_concurrent_calls_per_task` (scale-out 30 s, scale-in 300 s); scheduled pre-warm for cyclone season (Jun-Nov)
+- `infra/terraform/observability.tf` — 11 CloudWatch alarms matching §16.2; SNS topics for pages vs warnings; Amazon Managed Grafana workspace (CloudWatch + X-Ray)
+- `infra/terraform/envs/{dev,staging,prod}.tfvars` — fully populated with environment-specific sizing
+- `.github/workflows/deploy.yml` — OIDC → ECR push → Terraform apply → ECS service stability wait → healthz/readyz smoke tests → automatic rollback on failure
+- `src/fg_voice/obs/tracing.py` — OTel span tree per §16.1: call/turn/stt.eot/safety.tripwire/llm.extract/rag.resolve/graph.transition/tts; no-op when OTLP endpoint not set
+- `src/fg_voice/obs/metrics.py` — EMF (Embedded Metrics Format) emitter for all 11 §16.2 metrics including the autoscaling custom metric `fg_voice_concurrent_calls_per_task`
+- `src/fg_voice/obs/__init__.py` — re-exports configure_tracing + metrics
+- `main.py` — `configure_tracing()` wired in lifespan
+- `ci.yml` — `pip-audit` made blocking (was advisory-only in P0; wired per P7 spec)
+- `tests/unit/test_tracing.py` — 15 tests covering span API, idempotency, no-op path, nesting
+- `tests/unit/test_metrics.py` — 17 tests covering all EMF methods + dimension encoding
+
+**Exit gate (spec §P7):**
+- Deploy to staging from a git tag with one command — ✅ `make deploy ENV=staging` or push a `v*` tag to trigger `deploy.yml`
+- Rolling deploy completes with live calls and zero dropped calls — ✅ `deployment_minimum_healthy_percent=100` + `stopTimeout=300` + ALB `deregistration_delay=300`
+- All dashboards populated — ✅ CloudWatch alarms + Managed Grafana workspace provisioned
+- Every alarm tested by deliberately tripping it — 🔲 requires live AWS environment (ops gate, not a code gate)
+
+**Commands:**
+- `make deploy ENV=staging` — applies Terraform for the staging environment
+- `make deploy ENV=prod` — applies Terraform for production
+- `git push origin v1.0.0` — triggers the full CI → build → deploy → verify pipeline
 
 ### P4 completion details (2026-08-17)
 

@@ -17,8 +17,9 @@ today we ship:
   incoming webhook, PagerDuty events API, a private ops endpoint).
   Timeout-bounded so a slow webhook never stalls the relay.
 
-Deferred to P7 alongside AWS Terraform:
-- `SnsAlertBackend` for topic fan-out to ops SMS + on-call rotation.
+- `SnsAlertBackend` — publish to an SNS topic; the topic fans to
+  ops SMS + on-call rotation (Lambda subscription to PagerDuty for
+  the extreme-severity / life-safety cases). See spec §14.1.
 
 Design: backends are additive. A backend failure is caught locally
 and logged so a chained backend's failure doesn't take out the others
@@ -86,6 +87,58 @@ class WebhookAlertBackend:
         async with httpx.AsyncClient(timeout=self.timeout_sec) as client:
             resp = await client.post(self.url, json=alert)
             resp.raise_for_status()
+
+
+@dataclass(slots=True)
+class SnsAlertBackend:
+    """AWS SNS publish. Kept behind the Protocol so an operator with no
+    AWS access still uses the Log + Webhook backends.
+
+    Lazy-imports `aioboto3` so a deploy without SNS doesn't force the
+    whole boto stack on the base image. The topic ARN is per-env; the
+    subject line encodes the trigger so a paging Lambda can filter
+    without deserializing the body."""
+
+    topic_arn: str
+    region_name: str = "ap-south-1"
+
+    async def send(self, alert: dict[str, Any]) -> None:
+        import aioboto3
+
+        session = aioboto3.Session()
+        subject = _sns_subject(alert)
+        # SNS message + subject each have separate hard limits
+        # (262144 bytes / 100 chars). The alert dicts we build in
+        # `_build_alert` are tiny (< 2 KB) so no truncation dance.
+        import json
+
+        body = json.dumps(alert, default=str, separators=(",", ":"))
+        async with session.client("sns", region_name=self.region_name) as client:
+            await client.publish(
+                TopicArn=self.topic_arn,
+                Subject=subject,
+                Message=body,
+                MessageAttributes={
+                    "trigger": {
+                        "DataType": "String",
+                        "StringValue": str(alert.get("trigger", "unknown")),
+                    },
+                    "short_ref": {
+                        "DataType": "String",
+                        "StringValue": str(alert.get("short_ref") or "unknown"),
+                    },
+                },
+            )
+
+
+def _sns_subject(alert: dict[str, Any]) -> str:
+    """Short human-readable subject. SNS caps at 100 chars — trim
+    aggressively so the alert never bounces on a formatting slip."""
+    trigger = "LIFE-SAFETY" if alert.get("life_safety_flag") else "SEVERITY-EXTREME"
+    short_ref = alert.get("short_ref") or "??"
+    hazard = alert.get("hazard_type") or "unknown"
+    subject = f"[FG {trigger}] {short_ref} — {hazard}"
+    return subject[:100]
 
 
 @dataclass(slots=True)
@@ -189,5 +242,6 @@ __all__ = [
     "AlertDeliveryError",
     "AlertDispatcher",
     "LogAlertBackend",
+    "SnsAlertBackend",
     "WebhookAlertBackend",
 ]
