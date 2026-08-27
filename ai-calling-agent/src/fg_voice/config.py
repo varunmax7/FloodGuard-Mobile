@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     twilio_phone_number: str = ""
     twilio_media_region: str = "sg1"
     public_wss_base: str = "wss://voice.floodguard.in"
+    # Dev-only escape hatch. Skips X-Twilio-Signature verification on
+    # /voice/* webhooks — necessary when a free-tier tunnel (ngrok free,
+    # cloudflared) strips or interposes on request headers. NEVER enable
+    # in production: it lets anyone forge webhook events.
+    twilio_signature_validation_enabled: bool = True
 
     # ── STT ──────────────────────────────────────────────────
     deepgram_api_key: SecretStr = SecretStr("")

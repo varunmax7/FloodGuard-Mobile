@@ -64,6 +64,12 @@ def _reconstruct_url(request: Request) -> str:
 
 
 async def _validate(request: Request, signature: str | None, params: dict[str, str]) -> None:
+    settings = get_settings()
+    if not settings.twilio_signature_validation_enabled:
+        if settings.is_production():
+            raise HTTPException(status_code=500, detail="signature validation disabled in prod")
+        log.warning("twilio.signature_check_skipped", path=request.url.path)
+        return
     try:
         verify_twilio_signature(signature, _reconstruct_url(request), params)
     except InvalidTwilioSignatureError as exc:

@@ -64,6 +64,14 @@ def _default_report_sink() -> ReportSink:
 _report_sink_provider = _default_report_sink
 
 
+def _next_action_path() -> str:
+    """Return absolute URL for the gather action. Relative paths trip
+    ngrok free tunnels intermittently — an absolute URL is bulletproof."""
+    settings = get_settings()
+    base = settings.public_wss_base.replace("wss://", "https://").replace("ws://", "http://").rstrip("/")
+    return f"{base}/voice/gather/next"
+
+
 NEXT_ACTION_PATH = "/voice/gather/next"
 
 
@@ -184,7 +192,7 @@ def _twiml_response(step: TurnStepResult, prompt_bank: PromptBank) -> Response:
 
     body = render_gather_step(
         say_texts=say_texts,
-        gather_action=NEXT_ACTION_PATH if step.action == "gather" else None,
+        gather_action=_next_action_path() if step.action == "gather" else None,
         dtmf_map=step.dtmf_map,
     )
     return Response(content=body, media_type="application/xml")

@@ -23,9 +23,11 @@ Design:
 from __future__ import annotations
 
 import hmac
+import secrets
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from fg_voice.config import get_settings
 
@@ -59,4 +61,35 @@ def require_admin_api_key(
 AdminApiKey = Depends(require_admin_api_key)
 
 
-__all__ = ["ADMIN_API_KEY_HEADER", "AdminApiKey", "require_admin_api_key"]
+_basic = HTTPBasic()
+
+_BASIC_USER = "floodguard"
+_BASIC_PASS = "floodguard123"
+
+
+def require_basic_auth(
+    credentials: Annotated[HTTPBasicCredentials, Depends(_basic)],
+) -> str:
+    """Browser-friendly Basic auth. Guards the dial page + console UI.
+    Fixed credentials for dev — swap to a settings lookup for prod."""
+    user_ok = secrets.compare_digest(credentials.username, _BASIC_USER)
+    pass_ok = secrets.compare_digest(credentials.password, _BASIC_PASS)
+    if not (user_ok and pass_ok):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
+
+BasicAuth = Depends(require_basic_auth)
+
+
+__all__ = [
+    "ADMIN_API_KEY_HEADER",
+    "AdminApiKey",
+    "BasicAuth",
+    "require_admin_api_key",
+    "require_basic_auth",
+]

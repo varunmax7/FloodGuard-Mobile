@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from fg_voice import __version__
 from fg_voice.api import routes_reports, routes_voice
 from fg_voice.api.routes_console import router as console_router
+from fg_voice.api.routes_dial import router as dial_router
 from fg_voice.api.routes_dlq import router as dlq_router
 from fg_voice.api.routes_gather import router as gather_router
 from fg_voice.api.routes_health import router as health_router
@@ -390,3 +391,4 @@ app.include_router(dlq_router)
 app.include_router(pin_router)
 app.include_router(console_router)
 app.include_router(privacy_router)
+app.include_router(dial_router)

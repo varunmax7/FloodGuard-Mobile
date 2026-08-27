@@ -9,7 +9,7 @@ The full design document is [`ai-calling-agent.md`](./ai-calling-agent.md).
 The operating rules for anyone (human or agent) touching this repo are in
 [`CLAUDE.md`](./CLAUDE.md). **Read both before writing a line of code.**
 
-## Status
+## Status 
 
 | Phase | State |
 |---|---|

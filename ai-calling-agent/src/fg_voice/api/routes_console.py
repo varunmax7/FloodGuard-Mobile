@@ -19,13 +19,13 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from fg_voice.api.auth import require_admin_api_key
+from fg_voice.api.auth import require_basic_auth
 from fg_voice.persistence.db import get_session_maker
 
 router = APIRouter(
     prefix="/api/v1/console",
     tags=["console"],
-    dependencies=[Depends(require_admin_api_key)],
+    dependencies=[Depends(require_basic_auth)],
 )
 
 # ── HTML shell ───────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ async function loadCalls() {
   if (minDur)   url += '&min_duration=' + minDur;
 
   const resp = await fetch(url, {
-    headers: {'X-Admin-Api-Key': window.__ADMIN_KEY || prompt('Admin API key:')}
+    headers: {'X-Admin-Api-Key': window.__ADMIN_KEY || ''}
   });
   if (!resp.ok) { alert('Auth failed'); return; }
   const data = await resp.json();
@@ -141,21 +141,21 @@ function renderTable(calls) {
     const conf = c.confidence_overall != null ? c.confidence_overall.toFixed(2) : '—';
     const ls = c.life_safety_flag ? '<span class="life-safety">⚠ 112</span> ' : '';
     const turnsBar = '|'.repeat(Math.min(c.turns_count || 0, 20));
-    return \`<tr>
-      <td>\${ls}<b>\${c.short_ref || '—'}</b></td>
-      <td>\${c.received_at_ist || '—'}</td>
-      <td class="outcome-\${oc}">\${oc}</td>
-      <td>\${c.hazard_type || '—'}</td>
-      <td>\${c.severity || '—'}</td>
-      <td title="\${c.location_text || ''}">\${(c.resolved_place || c.location_text || '—').slice(0, 24)}</td>
-      <td class="\${confClass}">\${conf}</td>
-      <td>\${c.call_duration_sec != null ? c.call_duration_sec + 's' : '—'}</td>
-      <td title="\${c.turns_count} turns">\${turnsBar}</td>
+    return `<tr>
+      <td>${ls}<b>${c.short_ref || '—'}</b></td>
+      <td>${c.received_at_ist || '—'}</td>
+      <td class="outcome-${oc}">${oc}</td>
+      <td>${c.hazard_type || '—'}</td>
+      <td>${c.severity || '—'}</td>
+      <td title="${c.location_text || ''}">${(c.resolved_place || c.location_text || '—').slice(0, 24)}</td>
+      <td class="${confClass}">${conf}</td>
+      <td>${c.call_duration_sec != null ? c.call_duration_sec + 's' : '—'}</td>
+      <td title="${c.turns_count} turns">${turnsBar}</td>
       <td>
-        <button class="btn-sm btn-detail" onclick="showDetail('\${c.report_id}')">Detail</button>
-        <button class="btn-sm btn-golden" onclick="downloadGolden('\${c.report_id}')">→ Golden</button>
+        <button class="btn-sm btn-detail" onclick="showDetail('${c.report_id}')">Detail</button>
+        <button class="btn-sm btn-golden" onclick="downloadGolden('${c.report_id}')">→ Golden</button>
       </td>
-    </tr>\`;
+    </tr>`;
   }).join('');
 }
 
