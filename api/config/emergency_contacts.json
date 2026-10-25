@@ -1,0 +1,26 @@
+{
+  "_note": "Candidate list from FLOODGUARD_ANDHRA_MVP.md §7.9/DS-7, carried over verbatim — none of these have actually been call-verified (no phone access here). verified_on is null for every entry on purpose: per the spec's own rule (AT-20), a production build must not render a line without both `number` and `verified_on`. These need the real verification pass (Ops lead + founder sign-off) the spec calls for before launch; dev builds should show them tagged UNVERIFIED instead of hiding them.",
+  "links": {
+    "imd": "https://mausam.imd.gov.in/",
+    "rsmc_new_delhi": "https://rsmcnewdelhi.imd.gov.in/",
+    "apsdma": "https://apsdma.ap.gov.in/",
+    "osdma": "https://osdma.org/",
+    "ndma": "https://ndma.gov.in/"
+  },
+  "states": {
+    "AP": [
+      { "id": "ap-112", "label_en": "National emergency number", "label_te": "జాతీయ అత్యవసర నంబర్", "number": "112", "verified_on": null },
+      { "id": "ap-sdma", "label_en": "AP State Disaster Management Authority", "label_te": "ఆంధ్రప్రదేశ్ రాష్ట్ర విపత్తు నిర్వహణ సంస్థ", "number": null, "verified_on": null },
+      { "id": "ap-district-1077", "label_en": "District control room (candidate)", "label_te": "జిల్లా నియంత్రణ గది (అభ్యర్థి)", "number": "1077", "verified_on": null },
+      { "id": "ap-ambulance", "label_en": "Ambulance", "label_te": "అంబులెన్స్", "number": "108", "verified_on": null },
+      { "id": "ap-fire", "label_en": "Fire", "label_te": "అగ్నిమాపక దళం", "number": "101", "verified_on": null }
+    ],
+    "OD": [
+      { "id": "od-112", "label_en": "National emergency number", "label_te": "జాతీయ అత్యవసర నంబర్", "number": "112", "verified_on": null },
+      { "id": "od-sdma", "label_en": "Odisha State Disaster Management Authority", "label_te": "ఒడిశా రాష్ట్ర విపత్తు నిర్వహణ సంస్థ", "number": null, "verified_on": null },
+      { "id": "od-district-1077", "label_en": "District control room (candidate)", "label_te": "జిల్లా నియంత్రణ గది (అభ్యర్థి)", "number": "1077", "verified_on": null },
+      { "id": "od-ambulance", "label_en": "Ambulance", "label_te": "అంబులెన్స్", "number": "108", "verified_on": null },
+      { "id": "od-fire", "label_en": "Fire", "label_te": "అగ్నిమాపక దళం", "number": "101", "verified_on": null }
+    ]
+  }
+}

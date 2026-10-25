@@ -1,0 +1,3802 @@
+[
+ {
+  "id": 1258393,
+  "name_en": "Rasapudipalem",
+  "population": 1728128,
+  "state_code": "AP",
+  "lat": 17.73308,
+  "lon": 83.31622
+ },
+ {
+  "id": 1261162,
+  "name_en": "Nowrangapur",
+  "population": 1220946,
+  "state_code": "OD",
+  "lat": 19.23114,
+  "lon": 82.54826
+ },
+ {
+  "id": 1253184,
+  "name_en": "Vijayawada",
+  "population": 1143232,
+  "state_code": "AP",
+  "lat": 16.50745,
+  "lon": 80.6466
+ },
+ {
+  "id": 1253102,
+  "name_en": "Visakhapatnam",
+  "population": 1063178,
+  "state_code": "AP",
+  "lat": 17.68009,
+  "lon": 83.20161
+ },
+ {
+  "id": 1275817,
+  "name_en": "Bhubaneswar",
+  "population": 885363,
+  "state_code": "OD",
+  "lat": 20.27241,
+  "lon": 85.83385
+ },
+ {
+  "id": 1270668,
+  "name_en": "Guntur",
+  "population": 670073,
+  "state_code": "AP",
+  "lat": 16.29974,
+  "lon": 80.45729
+ },
+ {
+  "id": 1273780,
+  "name_en": "Cuttack",
+  "population": 610189,
+  "state_code": "OD",
+  "lat": 20.46497,
+  "lon": 85.87927
+ },
+ {
+  "id": 1261529,
+  "name_en": "Nellore",
+  "population": 547621,
+  "state_code": "AP",
+  "lat": 14.44992,
+  "lon": 79.98697
+ },
+ {
+  "id": 1265491,
+  "name_en": "Kurnool",
+  "population": 460184,
+  "state_code": "AP",
+  "lat": 15.82887,
+  "lon": 78.03602
+ },
+ {
+  "id": 1268561,
+  "name_en": "Kakinada",
+  "population": 384182,
+  "state_code": "AP",
+  "lat": 16.96036,
+  "lon": 82.23809
+ },
+ {
+  "id": 1258932,
+  "name_en": "Rajamahendravaram",
+  "population": 376333,
+  "state_code": "AP",
+  "lat": 17.00517,
+  "lon": 81.77784
+ },
+ {
+  "id": 1275198,
+  "name_en": "Brahmapur",
+  "population": 356598,
+  "state_code": "OD",
+  "lat": 19.31151,
+  "lon": 84.7929
+ },
+ {
+  "id": 1273800,
+  "name_en": "Kadapa",
+  "population": 344893,
+  "state_code": "AP",
+  "lat": 14.47995,
+  "lon": 78.82346
+ },
+ {
+  "id": 1254360,
+  "name_en": "Tirupati",
+  "population": 295323,
+  "state_code": "AP",
+  "lat": 13.63551,
+  "lon": 79.41989
+ },
+ {
+  "id": 1258315,
+  "name_en": "Rourkela",
+  "population": 273317,
+  "state_code": "OD",
+  "lat": 22.22496,
+  "lon": 84.86414
+ },
+ {
+  "id": 1278672,
+  "name_en": "Anantapur",
+  "population": 267161,
+  "state_code": "AP",
+  "lat": 14.67784,
+  "lon": 77.60813
+ },
+ {
+  "id": 7302833,
+  "name_en": "Gajuwaka",
+  "population": 258944,
+  "state_code": "AP",
+  "lat": 17.7,
+  "lon": 83.21667
+ },
+ {
+  "id": 1253084,
+  "name_en": "Vizianagaram",
+  "population": 228720,
+  "state_code": "AP",
+  "lat": 18.11692,
+  "lon": 83.41148
+ },
+ {
+  "id": 1272051,
+  "name_en": "Eluru",
+  "population": 218020,
+  "state_code": "AP",
+  "lat": 16.71311,
+  "lon": 81.10437
+ },
+ {
+  "id": 13308246,
+  "name_en": "Raurkela Industrial Township",
+  "population": 216410,
+  "state_code": "OD",
+  "lat": 22.19994,
+  "lon": 84.86176
+ },
+ {
+  "id": 1261927,
+  "name_en": "Nandyal",
+  "population": 211424,
+  "state_code": "AP",
+  "lat": 15.47799,
+  "lon": 78.4836
+ },
+ {
+  "id": 1261045,
+  "name_en": "Ongole",
+  "population": 208344,
+  "state_code": "AP",
+  "lat": 15.50357,
+  "lon": 80.04454
+ },
+ {
+  "id": 1259184,
+  "name_en": "Puri",
+  "population": 200564,
+  "state_code": "OD",
+  "lat": 19.79825,
+  "lon": 85.82494
+ },
+ {
+  "id": 1264637,
+  "name_en": "Machilipatnam",
+  "population": 192827,
+  "state_code": "AP",
+  "lat": 16.18747,
+  "lon": 81.13888
+ },
+ {
+  "id": 1257542,
+  "name_en": "Sambalpur",
+  "population": 189366,
+  "state_code": "OD",
+  "lat": 21.46527,
+  "lon": 83.97573
+ },
+ {
+  "id": 1279335,
+  "name_en": "Adoni",
+  "population": 184625,
+  "state_code": "AP",
+  "lat": 15.62788,
+  "lon": 77.27495
+ },
+ {
+  "id": 1264621,
+  "name_en": "Madanapalle",
+  "population": 180180,
+  "state_code": "AP",
+  "lat": 13.5503,
+  "lon": 78.50288
+ },
+ {
+  "id": 1259312,
+  "name_en": "Proddatur",
+  "population": 177797,
+  "state_code": "AP",
+  "lat": 14.7502,
+  "lon": 78.54813
+ },
+ {
+  "id": 1254757,
+  "name_en": "Thenali",
+  "population": 164937,
+  "state_code": "AP",
+  "lat": 16.24253,
+  "lon": 80.63982
+ },
+ {
+  "id": 1274033,
+  "name_en": "Chittoor",
+  "population": 160722,
+  "state_code": "AP",
+  "lat": 13.21055,
+  "lon": 79.0956
+ },
+ {
+  "id": 1270079,
+  "name_en": "Hindupur",
+  "population": 151677,
+  "state_code": "AP",
+  "lat": 13.82807,
+  "lon": 77.49143
+ },
+ {
+  "id": 1275947,
+  "name_en": "Bhimavaram",
+  "population": 146961,
+  "state_code": "AP",
+  "lat": 16.54078,
+  "lon": 81.52322
+ },
+ {
+  "id": 1277599,
+  "name_en": "Balasore",
+  "population": 144373,
+  "state_code": "OD",
+  "lat": 21.49266,
+  "lon": 86.93348
+ },
+ {
+  "id": 1255647,
+  "name_en": "Srikakulam",
+  "population": 137944,
+  "state_code": "AP",
+  "lat": 18.2989,
+  "lon": 83.89751
+ },
+ {
+  "id": 1270670,
+  "name_en": "Guntakal",
+  "population": 126270,
+  "state_code": "AP",
+  "lat": 15.17112,
+  "lon": 77.36244
+ },
+ {
+  "id": 1272842,
+  "name_en": "Dharmavaram",
+  "population": 121874,
+  "state_code": "AP",
+  "lat": 14.41435,
+  "lon": 77.72035
+ },
+ {
+  "id": 1276325,
+  "name_en": "Bhadrak",
+  "population": 121338,
+  "state_code": "OD",
+  "lat": 21.05447,
+  "lon": 86.5156
+ },
+ {
+  "id": 1270801,
+  "name_en": "Gudivada",
+  "population": 118167,
+  "state_code": "AP",
+  "lat": 16.43547,
+  "lon": 80.99555
+ },
+ {
+  "id": 1261848,
+  "name_en": "Narasaraopet",
+  "population": 117489,
+  "state_code": "AP",
+  "lat": 16.23488,
+  "lon": 80.04927
+ },
+ {
+  "id": 1276942,
+  "name_en": "Baripada",
+  "population": 116849,
+  "state_code": "OD",
+  "lat": 21.93458,
+  "lon": 86.72852
+ },
+ {
+  "id": 1255264,
+  "name_en": "Tadepalligudem",
+  "population": 112655,
+  "state_code": "AP",
+  "lat": 16.81467,
+  "lon": 81.52717
+ },
+ {
+  "id": 1255254,
+  "name_en": "Tadpatri",
+  "population": 108171,
+  "state_code": "AP",
+  "lat": 14.90832,
+  "lon": 78.01031
+ },
+ {
+  "id": 1263797,
+  "name_en": "Mangalagiri",
+  "population": 107197,
+  "state_code": "AP",
+  "lat": 16.43083,
+  "lon": 80.56815
+ },
+ {
+  "id": 12261477,
+  "name_en": "Amaravati",
+  "population": 103000,
+  "state_code": "AP",
+  "lat": 16.514,
+  "lon": 80.516
+ },
+ {
+  "id": 1274213,
+  "name_en": "Chilakalurupet",
+  "population": 101398,
+  "state_code": "AP",
+  "lat": 16.08987,
+  "lon": 80.16705
+ },
+ {
+  "id": 1277643,
+  "name_en": "Balangir",
+  "population": 98238,
+  "state_code": "OD",
+  "lat": 20.70419,
+  "lon": 83.49029
+ },
+ {
+  "id": 1268977,
+  "name_en": "Jharsuguda",
+  "population": 97730,
+  "state_code": "OD",
+  "lat": 21.85531,
+  "lon": 84.00698
+ },
+ {
+  "id": 1272045,
+  "name_en": "Emmiganur",
+  "population": 95149,
+  "state_code": "AP",
+  "lat": 15.77203,
+  "lon": 77.48345
+ },
+ {
+  "id": 1274106,
+  "name_en": "Chirala",
+  "population": 92942,
+  "state_code": "AP",
+  "lat": 15.82385,
+  "lon": 80.35219
+ },
+ {
+  "id": 1258291,
+  "name_en": "Rayachoti",
+  "population": 91234,
+  "state_code": "AP",
+  "lat": 14.05723,
+  "lon": 78.75056
+ },
+ {
+  "id": 1267394,
+  "name_en": "Kavali",
+  "population": 90099,
+  "state_code": "AP",
+  "lat": 14.9163,
+  "lon": 79.99449
+ },
+ {
+  "id": 1268673,
+  "name_en": "Kadiri",
+  "population": 89429,
+  "state_code": "AP",
+  "lat": 14.11168,
+  "lon": 78.15982
+ },
+ {
+  "id": 1260390,
+  "name_en": "Paralakhemundi",
+  "population": 87152,
+  "state_code": "OD",
+  "lat": 18.77619,
+  "lon": 84.09504
+ },
+ {
+  "id": 1278688,
+  "name_en": "Anakapalle",
+  "population": 86519,
+  "state_code": "AP",
+  "lat": 17.69134,
+  "lon": 83.00395
+ },
+ {
+  "id": 1260393,
+  "name_en": "Paradip Garh",
+  "population": 85868,
+  "state_code": "OD",
+  "lat": 20.31641,
+  "lon": 86.6085
+ },
+ {
+  "id": 1269092,
+  "name_en": "Jeypore",
+  "population": 84830,
+  "state_code": "OD",
+  "lat": 18.8563,
+  "lon": 82.5716
+ },
+ {
+  "id": 1260792,
+  "name_en": "Palakollu",
+  "population": 81199,
+  "state_code": "AP",
+  "lat": 16.5167,
+  "lon": 81.73
+ },
+ {
+  "id": 1276988,
+  "name_en": "Bargarh",
+  "population": 80625,
+  "state_code": "OD",
+  "lat": 21.33348,
+  "lon": 83.61905
+ },
+ {
+  "id": 1275194,
+  "name_en": "Brajarajnagar",
+  "population": 80403,
+  "state_code": "OD",
+  "lat": 21.81667,
+  "lon": 83.91667
+ },
+ {
+  "id": 9408449,
+  "name_en": "Srikalahasti",
+  "population": 80056,
+  "state_code": "AP",
+  "lat": 13.75514,
+  "lon": 79.70143
+ },
+ {
+  "id": 1254953,
+  "name_en": "Tanuku",
+  "population": 77962,
+  "state_code": "AP",
+  "lat": 16.75438,
+  "lon": 81.68143
+ },
+ {
+  "id": 1270791,
+  "name_en": "Gudur",
+  "population": 74851,
+  "state_code": "AP",
+  "lat": 14.15093,
+  "lon": 79.8521
+ },
+ {
+  "id": 1258289,
+  "name_en": "Rayagada",
+  "population": 71208,
+  "state_code": "OD",
+  "lat": 19.17132,
+  "lon": 83.41428
+ },
+ {
+  "id": 1263504,
+  "name_en": "Markapur",
+  "population": 71092,
+  "state_code": "AP",
+  "lat": 15.73534,
+  "lon": 79.26848
+ },
+ {
+  "id": 1277183,
+  "name_en": "Bapatla",
+  "population": 70777,
+  "state_code": "AP",
+  "lat": 15.90422,
+  "lon": 80.46743
+ },
+ {
+  "id": 1277949,
+  "name_en": "Badvel",
+  "population": 70626,
+  "state_code": "AP",
+  "lat": 14.7451,
+  "lon": 79.06288
+ },
+ {
+  "id": 1276023,
+  "name_en": "Bhawanipatna",
+  "population": 69045,
+  "state_code": "OD",
+  "lat": 19.90717,
+  "lon": 83.16697
+ },
+ {
+  "id": 1278178,
+  "name_en": "Attili",
+  "population": 68196,
+  "state_code": "AP",
+  "lat": 16.7,
+  "lon": 81.6
+ },
+ {
+  "id": 1272780,
+  "name_en": "Dhenkanal",
+  "population": 67414,
+  "state_code": "OD",
+  "lat": 20.65744,
+  "lon": 85.59693
+ },
+ {
+  "id": 7279597,
+  "name_en": "Barbil",
+  "population": 66540,
+  "state_code": "OD",
+  "lat": 22.10194,
+  "lon": 85.37752
+ },
+ {
+  "id": 1260771,
+  "name_en": "Palasa",
+  "population": 65833,
+  "state_code": "AP",
+  "lat": 18.77257,
+  "lon": 84.41012
+ },
+ {
+  "id": 1259264,
+  "name_en": "Pulivendla",
+  "population": 65706,
+  "state_code": "AP",
+  "lat": 14.42139,
+  "lon": 78.22502
+ },
+ {
+  "id": 1255265,
+  "name_en": "Tadepalle",
+  "population": 64149,
+  "state_code": "AP",
+  "lat": 16.48333,
+  "lon": 80.6
+ },
+ {
+  "id": 7302830,
+  "name_en": "Chinnachowk",
+  "population": 64053,
+  "state_code": "AP",
+  "lat": 14.47516,
+  "lon": 78.8354
+ },
+ {
+  "id": 1269154,
+  "name_en": "Jatani",
+  "population": 63697,
+  "state_code": "OD",
+  "lat": 20.15975,
+  "lon": 85.70742
+ },
+ {
+  "id": 1259704,
+  "name_en": "Piduguralla",
+  "population": 63103,
+  "state_code": "AP",
+  "lat": 16.47926,
+  "lon": 79.88632
+ },
+ {
+  "id": 1253150,
+  "name_en": "Vinukonda",
+  "population": 62550,
+  "state_code": "AP",
+  "lat": 16.0531,
+  "lon": 79.73964
+ },
+ {
+  "id": 1262240,
+  "name_en": "Nagari",
+  "population": 62253,
+  "state_code": "AP",
+  "lat": 13.32139,
+  "lon": 79.58557
+ },
+ {
+  "id": 1258290,
+  "name_en": "Rayadrug",
+  "population": 61749,
+  "state_code": "AP",
+  "lat": 14.69971,
+  "lon": 76.85241
+ },
+ {
+  "id": 1267267,
+  "name_en": "Keonjhargarh",
+  "population": 60590,
+  "state_code": "OD",
+  "lat": 21.6318,
+  "lon": 85.59686
+ },
+ {
+  "id": 7302844,
+  "name_en": "Ponnur",
+  "population": 59913,
+  "state_code": "AP",
+  "lat": 16.07114,
+  "lon": 80.54944
+ },
+ {
+  "id": 1261852,
+  "name_en": "Narasapur",
+  "population": 59306,
+  "state_code": "AP",
+  "lat": 16.43425,
+  "lon": 81.69845
+ },
+ {
+  "id": 1272722,
+  "name_en": "Dhone",
+  "population": 59272,
+  "state_code": "AP",
+  "lat": 15.3952,
+  "lon": 77.8715
+ },
+ {
+  "id": 1261110,
+  "name_en": "Nuzvid",
+  "population": 58590,
+  "state_code": "AP",
+  "lat": 16.78854,
+  "lon": 80.84593
+ },
+ {
+  "id": 1267573,
+  "name_en": "Kasibugga",
+  "population": 57507,
+  "state_code": "AP",
+  "lat": 18.75927,
+  "lon": 84.41613
+ },
+ {
+  "id": 1264647,
+  "name_en": "Macherla",
+  "population": 57290,
+  "state_code": "AP",
+  "lat": 16.47635,
+  "lon": 79.43533
+ },
+ {
+  "id": 1268111,
+  "name_en": "Kandukur",
+  "population": 57246,
+  "state_code": "AP",
+  "lat": 15.21542,
+  "lon": 79.9039
+ },
+ {
+  "id": 1259408,
+  "name_en": "Ponnuru",
+  "population": 57170,
+  "state_code": "AP",
+  "lat": 16.06547,
+  "lon": 80.55203
+ },
+ {
+  "id": 12522807,
+  "name_en": "Byasanagar",
+  "population": 56946,
+  "state_code": "OD",
+  "lat": 20.95569,
+  "lon": 86.12643
+ },
+ {
+  "id": 1278026,
+  "name_en": "Bada Barabil",
+  "population": 56870,
+  "state_code": "OD",
+  "lat": 22.11186,
+  "lon": 85.38684
+ },
+ {
+  "id": 1257565,
+  "name_en": "Samalkot",
+  "population": 56864,
+  "state_code": "AP",
+  "lat": 17.05675,
+  "lon": 82.17639
+ },
+ {
+  "id": 1275406,
+  "name_en": "Bobbili",
+  "population": 56819,
+  "state_code": "AP",
+  "lat": 18.57366,
+  "lon": 83.35925
+ },
+ {
+  "id": 1257001,
+  "name_en": "Sattenapalle",
+  "population": 56721,
+  "state_code": "AP",
+  "lat": 16.39381,
+  "lon": 80.15221
+ },
+ {
+  "id": 1263898,
+  "name_en": "Mandapeta",
+  "population": 56063,
+  "state_code": "AP",
+  "lat": 16.86254,
+  "lon": 81.92921
+ },
+ {
+  "id": 1275930,
+  "name_en": "Bhimunipatnam",
+  "population": 55082,
+  "state_code": "AP",
+  "lat": 17.89017,
+  "lon": 83.45203
+ },
+ {
+  "id": 1259508,
+  "name_en": "Pithapuram",
+  "population": 54859,
+  "state_code": "AP",
+  "lat": 17.1168,
+  "lon": 82.25284
+ },
+ {
+  "id": 1259228,
+  "name_en": "Punganuru",
+  "population": 54746,
+  "state_code": "AP",
+  "lat": 13.36672,
+  "lon": 78.57186
+ },
+ {
+  "id": 1259123,
+  "name_en": "Puttur",
+  "population": 54092,
+  "state_code": "AP",
+  "lat": 13.44189,
+  "lon": 79.55314
+ },
+ {
+  "id": 1258922,
+  "name_en": "Razampeta",
+  "population": 54050,
+  "state_code": "AP",
+  "lat": 14.19544,
+  "lon": 79.15896
+ },
+ {
+  "id": 1260674,
+  "name_en": "Palmaner",
+  "population": 54035,
+  "state_code": "AP",
+  "lat": 13.2,
+  "lon": 78.74725
+ },
+ {
+  "id": 1260222,
+  "name_en": "Parvatipuram",
+  "population": 53844,
+  "state_code": "AP",
+  "lat": 18.78392,
+  "lon": 83.42569
+ },
+ {
+  "id": 13156777,
+  "name_en": "Jaggaiahpet",
+  "population": 53530,
+  "state_code": "AP",
+  "lat": 16.89155,
+  "lon": 80.09551
+ },
+ {
+  "id": 1254054,
+  "name_en": "Tuni",
+  "population": 53425,
+  "state_code": "AP",
+  "lat": 17.35905,
+  "lon": 82.54607
+ },
+ {
+  "id": 1278935,
+  "name_en": "Amalapuram",
+  "population": 53231,
+  "state_code": "AP",
+  "lat": 16.57868,
+  "lon": 82.00609
+ },
+ {
+  "id": 10281812,
+  "name_en": "Choudwar",
+  "population": 52999,
+  "state_code": "OD",
+  "lat": 20.53917,
+  "lon": 85.91512
+ },
+ {
+  "id": 1253251,
+  "name_en": "Venkatagiri",
+  "population": 52688,
+  "state_code": "AP",
+  "lat": 13.96005,
+  "lon": 79.58032
+ },
+ {
+  "id": 8741053,
+  "name_en": "Rajgangpur",
+  "population": 51362,
+  "state_code": "OD",
+  "lat": 22.2,
+  "lon": 84.583
+ },
+ {
+  "id": 1258201,
+  "name_en": "Repalle",
+  "population": 50866,
+  "state_code": "AP",
+  "lat": 16.0184,
+  "lon": 80.82958
+ },
+ {
+  "id": 8741024,
+  "name_en": "Sunabeda",
+  "population": 50394,
+  "state_code": "OD",
+  "lat": 18.7284,
+  "lon": 82.82932
+ },
+ {
+  "id": 1257587,
+  "name_en": "Salur",
+  "population": 50206,
+  "state_code": "AP",
+  "lat": 18.51716,
+  "lon": 83.20548
+ },
+ {
+  "id": 1259954,
+  "name_en": "Peddapuram",
+  "population": 49477,
+  "state_code": "AP",
+  "lat": 17.07701,
+  "lon": 82.13836
+ },
+ {
+  "id": 10778953,
+  "name_en": "Kanuru",
+  "population": 49006,
+  "state_code": "AP",
+  "lat": 16.49853,
+  "lon": 80.69141
+ },
+ {
+  "id": 1270974,
+  "name_en": "Gooty",
+  "population": 48658,
+  "state_code": "AP",
+  "lat": 15.11836,
+  "lon": 77.63776
+ },
+ {
+  "id": 1266128,
+  "name_en": "Koraput",
+  "population": 47468,
+  "state_code": "OD",
+  "lat": 18.81199,
+  "lon": 82.71048
+ },
+ {
+  "id": 1267283,
+  "name_en": "Kendraparha",
+  "population": 47006,
+  "state_code": "OD",
+  "lat": 20.50166,
+  "lon": 86.42227
+ },
+ {
+  "id": 1275050,
+  "name_en": "Burla",
+  "population": 46698,
+  "state_code": "OD",
+  "lat": 21.50976,
+  "lon": 83.87259
+ },
+ {
+  "id": 9063948,
+  "name_en": "Joda",
+  "population": 46631,
+  "state_code": "OD",
+  "lat": 22.017,
+  "lon": 85.422
+ },
+ {
+  "id": 1266616,
+  "name_en": "Khordha",
+  "population": 46205,
+  "state_code": "OD",
+  "lat": 20.18268,
+  "lon": 85.61629
+ },
+ {
+  "id": 1269323,
+  "name_en": "Jammalamadugu",
+  "population": 46069,
+  "state_code": "AP",
+  "lat": 14.84677,
+  "lon": 78.38314
+ },
+ {
+  "id": 1261567,
+  "name_en": "Nayudupet",
+  "population": 45769,
+  "state_code": "AP",
+  "lat": 13.90742,
+  "lon": 79.89465
+ },
+ {
+  "id": 1261957,
+  "name_en": "Nandikotkur",
+  "population": 45343,
+  "state_code": "AP",
+  "lat": 15.85668,
+  "lon": 78.26569
+ },
+ {
+  "id": 1255437,
+  "name_en": "Sundergarh",
+  "population": 45036,
+  "state_code": "OD",
+  "lat": 22.11667,
+  "lon": 84.03333
+ },
+ {
+  "id": 13156776,
+  "name_en": "Dowleswaram",
+  "population": 44637,
+  "state_code": "AP",
+  "lat": 16.94761,
+  "lon": 81.77987
+ },
+ {
+  "id": 1278593,
+  "name_en": "Angul",
+  "population": 44386,
+  "state_code": "OD",
+  "lat": 20.84089,
+  "lon": 85.10192
+ },
+ {
+  "id": 7302805,
+  "name_en": "Akkarampalle",
+  "population": 44219,
+  "state_code": "AP",
+  "lat": 13.65,
+  "lon": 79.42
+ },
+ {
+  "id": 1261446,
+  "name_en": "Nidadavole",
+  "population": 44173,
+  "state_code": "AP",
+  "lat": 16.90572,
+  "lon": 81.67222
+ },
+ {
+  "id": 1259444,
+  "name_en": "Polavaram",
+  "population": 43710,
+  "state_code": "AP",
+  "lat": 17.24754,
+  "lon": 81.64372
+ },
+ {
+  "id": 7302825,
+  "name_en": "Kanuru",
+  "population": 43696,
+  "state_code": "AP",
+  "lat": 16.28584,
+  "lon": 81.25464
+ },
+ {
+  "id": 1258756,
+  "name_en": "Ramachandrapuram",
+  "population": 43657,
+  "state_code": "AP",
+  "lat": 16.83636,
+  "lon": 82.02871
+ },
+ {
+  "id": 1258270,
+  "name_en": "Razam",
+  "population": 42197,
+  "state_code": "AP",
+  "lat": 18.44909,
+  "lon": 83.65957
+ },
+ {
+  "id": 1269477,
+  "name_en": "Jajpur",
+  "population": 42157,
+  "state_code": "OD",
+  "lat": 20.84852,
+  "lon": 86.33729
+ },
+ {
+  "id": 1259689,
+  "name_en": "Pileru",
+  "population": 41489,
+  "state_code": "AP",
+  "lat": 13.65584,
+  "lon": 78.93854
+ },
+ {
+  "id": 1269570,
+  "name_en": "Jaggayyapeta",
+  "population": 41180,
+  "state_code": "AP",
+  "lat": 16.8938,
+  "lon": 80.09807
+ },
+ {
+  "id": 1255143,
+  "name_en": "Talcher",
+  "population": 40841,
+  "state_code": "OD",
+  "lat": 20.94927,
+  "lon": 85.23354
+ },
+ {
+  "id": 1279123,
+  "name_en": "Akividu",
+  "population": 40413,
+  "state_code": "AP",
+  "lat": 16.58225,
+  "lon": 81.38112
+ },
+ {
+  "id": 1265886,
+  "name_en": "Kovvur",
+  "population": 40379,
+  "state_code": "AP",
+  "lat": 17.0162,
+  "lon": 81.72934
+ },
+ {
+  "id": 1278698,
+  "name_en": "Amudalavalasa",
+  "population": 39799,
+  "state_code": "AP",
+  "lat": 18.41025,
+  "lon": 83.90295
+ },
+ {
+  "id": 1278681,
+  "name_en": "Anandpur",
+  "population": 39585,
+  "state_code": "OD",
+  "lat": 21.21411,
+  "lon": 86.12492
+ },
+ {
+  "id": 1276416,
+  "name_en": "Betamcherla",
+  "population": 38994,
+  "state_code": "AP",
+  "lat": 15.45144,
+  "lon": 78.14797
+ },
+ {
+  "id": 10244604,
+  "name_en": "Belpahar",
+  "population": 38993,
+  "state_code": "OD",
+  "lat": 21.8218,
+  "lon": 83.8458
+ },
+ {
+  "id": 1266209,
+  "name_en": "Kondapalle",
+  "population": 38714,
+  "state_code": "AP",
+  "lat": 16.61989,
+  "lon": 80.54244
+ },
+ {
+  "id": 1253220,
+  "name_en": "Vetapalem",
+  "population": 38671,
+  "state_code": "AP",
+  "lat": 15.78502,
+  "lon": 80.30663
+ },
+ {
+  "id": 1261960,
+  "name_en": "Nandigama",
+  "population": 38219,
+  "state_code": "AP",
+  "lat": 16.7717,
+  "lon": 80.28596
+ },
+ {
+  "id": 1255483,
+  "name_en": "Suluru",
+  "population": 38065,
+  "state_code": "AP",
+  "lat": 13.7,
+  "lon": 80.01667
+ },
+ {
+  "id": 13156775,
+  "name_en": "Tirupati NMA",
+  "population": 37968,
+  "state_code": "AP",
+  "lat": 13.63229,
+  "lon": 79.48568
+ },
+ {
+  "id": 13156774,
+  "name_en": "Kanigiri U",
+  "population": 37420,
+  "state_code": "AP",
+  "lat": 15.40637,
+  "lon": 79.50702
+ },
+ {
+  "id": 1259756,
+  "name_en": "Phulbani",
+  "population": 37371,
+  "state_code": "OD",
+  "lat": 20.48101,
+  "lon": 84.23063
+ },
+ {
+  "id": 1253077,
+  "name_en": "Vuyyuru",
+  "population": 36755,
+  "state_code": "AP",
+  "lat": 16.36307,
+  "lon": 80.84406
+ },
+ {
+  "id": 1260178,
+  "name_en": "Patamundai",
+  "population": 36528,
+  "state_code": "OD",
+  "lat": 20.57806,
+  "lon": 86.56063
+ },
+ {
+  "id": 1269827,
+  "name_en": "Ichchapuram",
+  "population": 36493,
+  "state_code": "AP",
+  "lat": 19.11393,
+  "lon": 84.68721
+ },
+ {
+  "id": 1265888,
+  "name_en": "Kovur",
+  "population": 35600,
+  "state_code": "AP",
+  "lat": 14.5005,
+  "lon": 79.98518
+ },
+ {
+  "id": 1253698,
+  "name_en": "Uravakonda",
+  "population": 35565,
+  "state_code": "AP",
+  "lat": 14.94348,
+  "lon": 77.25494
+ },
+ {
+  "id": 1271213,
+  "name_en": "Giddalur",
+  "population": 35150,
+  "state_code": "AP",
+  "lat": 15.37439,
+  "lon": 78.92609
+ },
+ {
+  "id": 1278201,
+  "name_en": "Atmakur",
+  "population": 35137,
+  "state_code": "AP",
+  "lat": 15.88109,
+  "lon": 78.58704
+ },
+ {
+  "id": 1265830,
+  "name_en": "Rairangpur",
+  "population": 34929,
+  "state_code": "OD",
+  "lat": 22.26675,
+  "lon": 86.17385
+ },
+ {
+  "id": 7302853,
+  "name_en": "Yanamalakuduru",
+  "population": 34177,
+  "state_code": "AP",
+  "lat": 16.48531,
+  "lon": 80.66746
+ },
+ {
+  "id": 1254304,
+  "name_en": "Titlagarh",
+  "population": 34067,
+  "state_code": "OD",
+  "lat": 20.28961,
+  "lon": 83.15233
+ },
+ {
+  "id": 1262270,
+  "name_en": "Nagalapuram",
+  "population": 34026,
+  "state_code": "AP",
+  "lat": 13.38836,
+  "lon": 79.79623
+ },
+ {
+  "id": 1261748,
+  "name_en": "Narsipatnam",
+  "population": 33757,
+  "state_code": "AP",
+  "lat": 17.66709,
+  "lon": 82.61245
+ },
+ {
+  "id": 1276731,
+  "name_en": "Basudebpur",
+  "population": 33690,
+  "state_code": "OD",
+  "lat": 21.11974,
+  "lon": 86.72896
+ },
+ {
+  "id": 1269581,
+  "name_en": "Jagatsinghapur",
+  "population": 33631,
+  "state_code": "OD",
+  "lat": 20.2557,
+  "lon": 86.17112
+ },
+ {
+  "id": 1275506,
+  "name_en": "Birmitrapur",
+  "population": 33442,
+  "state_code": "OD",
+  "lat": 22.4,
+  "lon": 84.76667
+ },
+ {
+  "id": 1273448,
+  "name_en": "Darsi",
+  "population": 33418,
+  "state_code": "AP",
+  "lat": 15.76978,
+  "lon": 79.67939
+ },
+ {
+  "id": 1258229,
+  "name_en": "Remuna",
+  "population": 33378,
+  "state_code": "OD",
+  "lat": 21.52798,
+  "lon": 86.87156
+ },
+ {
+  "id": 1272008,
+  "name_en": "Erraguntla",
+  "population": 32574,
+  "state_code": "AP",
+  "lat": 14.63853,
+  "lon": 78.53974
+ },
+ {
+  "id": 1255705,
+  "name_en": "Soro",
+  "population": 32531,
+  "state_code": "OD",
+  "lat": 21.27851,
+  "lon": 86.68833
+ },
+ {
+  "id": 7302838,
+  "name_en": "Kalyandurg",
+  "population": 32328,
+  "state_code": "AP",
+  "lat": 14.54519,
+  "lon": 77.10552
+ },
+ {
+  "id": 7302808,
+  "name_en": "Chemmumiahpet",
+  "population": 31416,
+  "state_code": "AP",
+  "lat": 14.46289,
+  "lon": 78.81191
+ },
+ {
+  "id": 1258726,
+  "name_en": "Ramapuram",
+  "population": 31169,
+  "state_code": "AP",
+  "lat": 13.10091,
+  "lon": 79.1841
+ },
+ {
+  "id": 1259478,
+  "name_en": "Podili",
+  "population": 31145,
+  "state_code": "AP",
+  "lat": 15.60639,
+  "lon": 79.61489
+ },
+ {
+  "id": 1264075,
+  "name_en": "Malakanagiri",
+  "population": 31007,
+  "state_code": "OD",
+  "lat": 18.36428,
+  "lon": 81.888
+ },
+ {
+  "id": 1259986,
+  "name_en": "Pedana",
+  "population": 30721,
+  "state_code": "AP",
+  "lat": 16.25582,
+  "lon": 81.14378
+ },
+ {
+  "id": 1270059,
+  "name_en": "Hirakud",
+  "population": 30207,
+  "state_code": "OD",
+  "lat": 21.52502,
+  "lon": 83.87275
+ },
+ {
+  "id": 10849508,
+  "name_en": "Kakkalapalle",
+  "population": 30128,
+  "state_code": "AP",
+  "lat": 14.64152,
+  "lon": 77.56684
+ },
+ {
+  "id": 10778122,
+  "name_en": "Ibrahimpatnam",
+  "population": 29432,
+  "state_code": "AP",
+  "lat": 16.58303,
+  "lon": 80.51432
+ },
+ {
+  "id": 1260702,
+  "name_en": "Palkonda",
+  "population": 29378,
+  "state_code": "AP",
+  "lat": 18.60374,
+  "lon": 83.75568
+ },
+ {
+  "id": 1274020,
+  "name_en": "Chodavaram",
+  "population": 29000,
+  "state_code": "AP",
+  "lat": 17.82884,
+  "lon": 82.93526
+ },
+ {
+  "id": 1253860,
+  "name_en": "Umarkot",
+  "population": 28993,
+  "state_code": "OD",
+  "lat": 19.66529,
+  "lon": 82.20629
+ },
+ {
+  "id": 1270667,
+  "name_en": "Gunupur",
+  "population": 28870,
+  "state_code": "OD",
+  "lat": 19.0804,
+  "lon": 83.80879
+ },
+ {
+  "id": 1254794,
+  "name_en": "Tekkali",
+  "population": 28631,
+  "state_code": "AP",
+  "lat": 18.6057,
+  "lon": 84.23546
+ },
+ {
+  "id": 1279356,
+  "name_en": "Addanki",
+  "population": 28547,
+  "state_code": "AP",
+  "lat": 15.81061,
+  "lon": 79.97338
+ },
+ {
+  "id": 7302846,
+  "name_en": "Ramanayyapeta",
+  "population": 28369,
+  "state_code": "AP",
+  "lat": 16.94516,
+  "lon": 82.2385
+ },
+ {
+  "id": 1272084,
+  "name_en": "Elamanchili",
+  "population": 27265,
+  "state_code": "AP",
+  "lat": 17.54907,
+  "lon": 82.85749
+ },
+ {
+  "id": 7302842,
+  "name_en": "Payakaraopeta",
+  "population": 27001,
+  "state_code": "AP",
+  "lat": 17.36784,
+  "lon": 82.56826
+ },
+ {
+  "id": 1253242,
+  "name_en": "Vepagunta",
+  "population": 26881,
+  "state_code": "AP",
+  "lat": 17.77844,
+  "lon": 83.21577
+ },
+ {
+  "id": 11253678,
+  "name_en": "Mamidalapadu",
+  "population": 26694,
+  "state_code": "AP",
+  "lat": 15.85409,
+  "lon": 78.01481
+ },
+ {
+  "id": 1261853,
+  "name_en": "Narasannapeta",
+  "population": 26280,
+  "state_code": "AP",
+  "lat": 18.41428,
+  "lon": 84.04463
+ },
+ {
+  "id": 1258213,
+  "name_en": "Renigunta",
+  "population": 26031,
+  "state_code": "AP",
+  "lat": 13.65143,
+  "lon": 79.51256
+ },
+ {
+  "id": 1274116,
+  "name_en": "Chipurupalle",
+  "population": 25898,
+  "state_code": "AP",
+  "lat": 18.31142,
+  "lon": 83.56846
+ },
+ {
+  "id": 1278122,
+  "name_en": "Avanigadda",
+  "population": 25761,
+  "state_code": "AP",
+  "lat": 16.02148,
+  "lon": 80.91808
+ },
+ {
+  "id": 1269413,
+  "name_en": "Jaleshwar",
+  "population": 25747,
+  "state_code": "OD",
+  "lat": 21.80176,
+  "lon": 87.2225
+ },
+ {
+  "id": 10778956,
+  "name_en": "Poranki",
+  "population": 25545,
+  "state_code": "AP",
+  "lat": 16.47771,
+  "lon": 80.70755
+ },
+ {
+  "id": 1277330,
+  "name_en": "Banganapalle",
+  "population": 25325,
+  "state_code": "AP",
+  "lat": 15.31771,
+  "lon": 78.22669
+ },
+ {
+  "id": 1274021,
+  "name_en": "Rampachodavaram",
+  "population": 25074,
+  "state_code": "AP",
+  "lat": 17.44088,
+  "lon": 81.77558
+ },
+ {
+  "id": 1268059,
+  "name_en": "Kanigiri",
+  "population": 25045,
+  "state_code": "AP",
+  "lat": 15.40555,
+  "lon": 79.50694
+ },
+ {
+  "id": 13156773,
+  "name_en": "Avilala",
+  "population": 24839,
+  "state_code": "AP",
+  "lat": 13.61106,
+  "lon": 79.4208
+ },
+ {
+  "id": 1260830,
+  "name_en": "Pakala",
+  "population": 24680,
+  "state_code": "AP",
+  "lat": 13.44903,
+  "lon": 79.11493
+ },
+ {
+  "id": 1270066,
+  "name_en": "Hinjilicut",
+  "population": 24671,
+  "state_code": "OD",
+  "lat": 19.48166,
+  "lon": 84.74489
+ },
+ {
+  "id": 1270923,
+  "name_en": "Gorantla",
+  "population": 24586,
+  "state_code": "AP",
+  "lat": 13.98411,
+  "lon": 77.77224
+ },
+ {
+  "id": 1255621,
+  "name_en": "Srisailain",
+  "population": 24142,
+  "state_code": "AP",
+  "lat": 16.07217,
+  "lon": 78.86816
+ },
+ {
+  "id": 13156772,
+  "name_en": "Suryaraopeta",
+  "population": 24112,
+  "state_code": "AP",
+  "lat": 16.99961,
+  "lon": 82.22317
+ },
+ {
+  "id": 1259907,
+  "name_en": "Penugonda",
+  "population": 23654,
+  "state_code": "AP",
+  "lat": 16.65363,
+  "lon": 81.7455
+ },
+ {
+  "id": 7302834,
+  "name_en": "Katheru",
+  "population": 23572,
+  "state_code": "AP",
+  "lat": 17.03795,
+  "lon": 81.77597
+ },
+ {
+  "id": 1259446,
+  "name_en": "Polasara",
+  "population": 23119,
+  "state_code": "OD",
+  "lat": 19.69386,
+  "lon": 84.81401
+ },
+ {
+  "id": 13156771,
+  "name_en": "Tiruchanur",
+  "population": 22963,
+  "state_code": "AP",
+  "lat": 13.60727,
+  "lon": 79.44864
+ },
+ {
+  "id": 11271185,
+  "name_en": "Gopavaram",
+  "population": 22936,
+  "state_code": "AP",
+  "lat": 14.78412,
+  "lon": 78.5729
+ },
+ {
+  "id": 9035005,
+  "name_en": "Dhamanagar",
+  "population": 22920,
+  "state_code": "OD",
+  "lat": 20.9167,
+  "lon": 86.45
+ },
+ {
+  "id": 1267842,
+  "name_en": "Karanjia",
+  "population": 22865,
+  "state_code": "OD",
+  "lat": 21.76259,
+  "lon": 85.97319
+ },
+ {
+  "id": 1273795,
+  "name_en": "Cumbum",
+  "population": 22653,
+  "state_code": "AP",
+  "lat": 15.58171,
+  "lon": 79.11059
+ },
+ {
+  "id": 1273246,
+  "name_en": "Deogarh",
+  "population": 22390,
+  "state_code": "OD",
+  "lat": 21.53827,
+  "lon": 84.73337
+ },
+ {
+  "id": 10778177,
+  "name_en": "Ramavarappadu",
+  "population": 22222,
+  "state_code": "AP",
+  "lat": 16.52086,
+  "lon": 80.68078
+ },
+ {
+  "id": 1275818,
+  "name_en": "Bhuban",
+  "population": 22200,
+  "state_code": "OD",
+  "lat": 20.88197,
+  "lon": 85.83334
+ },
+ {
+  "id": 1274533,
+  "name_en": "Chhatrapur",
+  "population": 22027,
+  "state_code": "OD",
+  "lat": 19.35574,
+  "lon": 84.98359
+ },
+ {
+  "id": 1265555,
+  "name_en": "Kuppam",
+  "population": 21963,
+  "state_code": "AP",
+  "lat": 12.74931,
+  "lon": 78.34189
+ },
+ {
+  "id": 1267978,
+  "name_en": "Kantabanji",
+  "population": 21819,
+  "state_code": "OD",
+  "lat": 20.46709,
+  "lon": 82.92042
+ },
+ {
+  "id": 13156770,
+  "name_en": "Srisailam Project RFC Township",
+  "population": 21452,
+  "state_code": "AP",
+  "lat": 16.07331,
+  "lon": 78.87412
+ },
+ {
+  "id": 1278279,
+  "name_en": "Asika",
+  "population": 21428,
+  "state_code": "OD",
+  "lat": 19.61114,
+  "lon": 84.65998
+ },
+ {
+  "id": 1260082,
+  "name_en": "Patnagarh",
+  "population": 21024,
+  "state_code": "OD",
+  "lat": 20.70833,
+  "lon": 83.13263
+ },
+ {
+  "id": 11424018,
+  "name_en": "Vinnamala",
+  "population": 20924,
+  "state_code": "AP",
+  "lat": 13.90738,
+  "lon": 79.90855
+ },
+ {
+  "id": 1276870,
+  "name_en": "Barpali",
+  "population": 20850,
+  "state_code": "OD",
+  "lat": 21.19005,
+  "lon": 83.58721
+ },
+ {
+  "id": 1255763,
+  "name_en": "Sonepur",
+  "population": 20770,
+  "state_code": "OD",
+  "lat": 20.83333,
+  "lon": 83.91667
+ },
+ {
+  "id": 1268627,
+  "name_en": "Kaikalur",
+  "population": 20763,
+  "state_code": "AP",
+  "lat": 16.55154,
+  "lon": 81.214
+ },
+ {
+  "id": 1276159,
+  "name_en": "Bhanjanagar",
+  "population": 20647,
+  "state_code": "OD",
+  "lat": 19.92719,
+  "lon": 84.58201
+ },
+ {
+  "id": 1261531,
+  "name_en": "Nellimarla",
+  "population": 20498,
+  "state_code": "AP",
+  "lat": 18.15619,
+  "lon": 83.44727
+ },
+ {
+  "id": 1276686,
+  "name_en": "Baud",
+  "population": 20424,
+  "state_code": "OD",
+  "lat": 20.83773,
+  "lon": 84.32618
+ },
+ {
+  "id": 1259905,
+  "name_en": "Penukonda",
+  "population": 20220,
+  "state_code": "AP",
+  "lat": 14.08286,
+  "lon": 77.59473
+ },
+ {
+  "id": 1260615,
+  "name_en": "Pamuru",
+  "population": 20000,
+  "state_code": "AP",
+  "lat": 15.09633,
+  "lon": 79.41174
+ },
+ {
+  "id": 13156769,
+  "name_en": "L.A.Sagaram",
+  "population": 19904,
+  "state_code": "AP",
+  "lat": 13.90341,
+  "lon": 79.89055
+ },
+ {
+  "id": 1268772,
+  "name_en": "Junagarh",
+  "population": 19656,
+  "state_code": "OD",
+  "lat": 19.85993,
+  "lon": 82.93385
+ },
+ {
+  "id": 12522811,
+  "name_en": "Nalco",
+  "population": 19644,
+  "state_code": "OD",
+  "lat": 20.86544,
+  "lon": 85.18283
+ },
+ {
+  "id": 13156768,
+  "name_en": "Rameswaram",
+  "population": 19483,
+  "state_code": "AP",
+  "lat": 14.74006,
+  "lon": 78.54259
+ },
+ {
+  "id": 1271613,
+  "name_en": "Gannavaram",
+  "population": 19410,
+  "state_code": "AP",
+  "lat": 16.54092,
+  "lon": 80.80213
+ },
+ {
+  "id": 1256176,
+  "name_en": "Singarayakonda",
+  "population": 19400,
+  "state_code": "AP",
+  "lat": 15.23046,
+  "lon": 80.02794
+ },
+ {
+  "id": 13156767,
+  "name_en": "Mangalam",
+  "population": 19318,
+  "state_code": "AP",
+  "lat": 13.65754,
+  "lon": 79.46258
+ },
+ {
+  "id": 1261375,
+  "name_en": "Nimaparha",
+  "population": 19289,
+  "state_code": "OD",
+  "lat": 20.05756,
+  "lon": 86.00436
+ },
+ {
+  "id": 1267222,
+  "name_en": "Kesinga",
+  "population": 19239,
+  "state_code": "OD",
+  "lat": 20.18778,
+  "lon": 83.21949
+ },
+ {
+  "id": 13494585,
+  "name_en": "Khariar Road",
+  "population": 18967,
+  "state_code": "OD",
+  "lat": 20.89872,
+  "lon": 82.50893
+ },
+ {
+  "id": 10849677,
+  "name_en": "Somandepalle",
+  "population": 18895,
+  "state_code": "AP",
+  "lat": 14.00774,
+  "lon": 77.60846
+ },
+ {
+  "id": 13156766,
+  "name_en": "Sriramnagar",
+  "population": 18893,
+  "state_code": "AP",
+  "lat": 18.28329,
+  "lon": 83.53422
+ },
+ {
+  "id": 1255816,
+  "name_en": "Sompeta",
+  "population": 18778,
+  "state_code": "AP",
+  "lat": 18.94419,
+  "lon": 84.58449
+ },
+ {
+  "id": 13156765,
+  "name_en": "Nadim Tiruvuru",
+  "population": 18567,
+  "state_code": "AP",
+  "lat": 17.11209,
+  "lon": 80.6088
+ },
+ {
+  "id": 10776734,
+  "name_en": "Chandili",
+  "population": 18552,
+  "state_code": "OD",
+  "lat": 19.24665,
+  "lon": 83.40577
+ },
+ {
+  "id": 1254373,
+  "name_en": "Tirumala",
+  "population": 18013,
+  "state_code": "AP",
+  "lat": 13.68333,
+  "lon": 79.35
+ },
+ {
+  "id": 1276054,
+  "name_en": "Bhattiprolu",
+  "population": 18001,
+  "state_code": "AP",
+  "lat": 16.1026,
+  "lon": 80.78074
+ },
+ {
+  "id": 1253578,
+  "name_en": "Vadlapudi",
+  "population": 17881,
+  "state_code": "AP",
+  "lat": 14.31119,
+  "lon": 79.8043
+ },
+ {
+  "id": 1277515,
+  "name_en": "Balugan",
+  "population": 17645,
+  "state_code": "OD",
+  "lat": 19.73333,
+  "lon": 85.21667
+ },
+ {
+  "id": 1260916,
+  "name_en": "Padmapur",
+  "population": 17625,
+  "state_code": "OD",
+  "lat": 21.0,
+  "lon": 83.06667
+ },
+ {
+  "id": 1259592,
+  "name_en": "Pipili",
+  "population": 17623,
+  "state_code": "OD",
+  "lat": 20.11357,
+  "lon": 85.83147
+ },
+ {
+  "id": 1277273,
+  "name_en": "Banki",
+  "population": 17521,
+  "state_code": "OD",
+  "lat": 20.37912,
+  "lon": 85.52953
+ },
+ {
+  "id": 1277426,
+  "name_en": "Banapur",
+  "population": 17499,
+  "state_code": "OD",
+  "lat": 19.77889,
+  "lon": 85.17033
+ },
+ {
+  "id": 10778957,
+  "name_en": "Tadigadapa",
+  "population": 17462,
+  "state_code": "AP",
+  "lat": 16.47129,
+  "lon": 80.69695
+ },
+ {
+  "id": 12518878,
+  "name_en": "Kavisuryanagar",
+  "population": 17430,
+  "state_code": "OD",
+  "lat": 19.58148,
+  "lon": 84.76006
+ },
+ {
+  "id": 1259773,
+  "name_en": "Phirangipuram",
+  "population": 17335,
+  "state_code": "AP",
+  "lat": 16.29078,
+  "lon": 80.26233
+ },
+ {
+  "id": 1278216,
+  "name_en": "Athagarh",
+  "population": 17304,
+  "state_code": "OD",
+  "lat": 20.51999,
+  "lon": 85.62965
+ },
+ {
+  "id": 1261402,
+  "name_en": "Nilagiri",
+  "population": 17264,
+  "state_code": "OD",
+  "lat": 21.46235,
+  "lon": 86.76794
+ },
+ {
+  "id": 1277514,
+  "name_en": "Balugaon",
+  "population": 17238,
+  "state_code": "OD",
+  "lat": 20.17838,
+  "lon": 85.11327
+ },
+ {
+  "id": 1261580,
+  "name_en": "Nayagarh",
+  "population": 17030,
+  "state_code": "OD",
+  "lat": 20.12882,
+  "lon": 85.09626
+ },
+ {
+  "id": 13156764,
+  "name_en": "Hukumpeta",
+  "population": 16985,
+  "state_code": "AP",
+  "lat": 16.98874,
+  "lon": 81.8017
+ },
+ {
+  "id": 1274861,
+  "name_en": "Challapalle",
+  "population": 16841,
+  "state_code": "AP",
+  "lat": 16.11756,
+  "lon": 80.93139
+ },
+ {
+  "id": 1266220,
+  "name_en": "Konarka",
+  "population": 16834,
+  "state_code": "OD",
+  "lat": 19.89021,
+  "lon": 86.09761
+ },
+ {
+  "id": 1268279,
+  "name_en": "Kamakhyanagar",
+  "population": 16810,
+  "state_code": "OD",
+  "lat": 20.93385,
+  "lon": 85.54489
+ },
+ {
+  "id": 1277576,
+  "name_en": "Baliguda",
+  "population": 16611,
+  "state_code": "OD",
+  "lat": 20.19966,
+  "lon": 83.90938
+ },
+ {
+  "id": 1271062,
+  "name_en": "Gokavaram",
+  "population": 16389,
+  "state_code": "AP",
+  "lat": 17.25823,
+  "lon": 81.84985
+ },
+ {
+  "id": 1260940,
+  "name_en": "Padampur",
+  "population": 16387,
+  "state_code": "OD",
+  "lat": 20.99932,
+  "lon": 83.06325
+ },
+ {
+  "id": 13494584,
+  "name_en": "Lochapada",
+  "population": 16377,
+  "state_code": "OD",
+  "lat": 19.32873,
+  "lon": 84.80065
+ },
+ {
+  "id": 1266029,
+  "name_en": "Kotaparh",
+  "population": 16326,
+  "state_code": "OD",
+  "lat": 19.14256,
+  "lon": 82.32536
+ },
+ {
+  "id": 11185500,
+  "name_en": "Jalda",
+  "population": 15789,
+  "state_code": "OD",
+  "lat": 22.1872,
+  "lon": 84.84359
+ },
+ {
+  "id": 13494583,
+  "name_en": "Dera Colliery Township",
+  "population": 15787,
+  "state_code": "OD",
+  "lat": 20.95283,
+  "lon": 85.17174
+ },
+ {
+  "id": 1275558,
+  "name_en": "Binika",
+  "population": 15765,
+  "state_code": "OD",
+  "lat": 21.02626,
+  "lon": 83.81197
+ },
+ {
+  "id": 1266433,
+  "name_en": "Kuchinda",
+  "population": 15576,
+  "state_code": "OD",
+  "lat": 21.74356,
+  "lon": 84.34848
+ },
+ {
+  "id": 1266070,
+  "name_en": "Kosigi",
+  "population": 15455,
+  "state_code": "AP",
+  "lat": 15.8551,
+  "lon": 77.24463
+ },
+ {
+  "id": 1258619,
+  "name_en": "Rampur",
+  "population": 15379,
+  "state_code": "OD",
+  "lat": 21.07351,
+  "lon": 84.34095
+ },
+ {
+  "id": 1259158,
+  "name_en": "Purushottampur",
+  "population": 15366,
+  "state_code": "OD",
+  "lat": 19.52024,
+  "lon": 84.88514
+ },
+ {
+  "id": 13156763,
+  "name_en": "Morampudi",
+  "population": 15346,
+  "state_code": "AP",
+  "lat": 16.98005,
+  "lon": 81.83715
+ },
+ {
+  "id": 1275132,
+  "name_en": "Buguda",
+  "population": 15176,
+  "state_code": "OD",
+  "lat": 19.80806,
+  "lon": 84.79084
+ },
+ {
+  "id": 13494582,
+  "name_en": "Ghantapada",
+  "population": 15169,
+  "state_code": "OD",
+  "lat": 20.93453,
+  "lon": 85.18788
+ },
+ {
+  "id": 1255712,
+  "name_en": "Sorada",
+  "population": 15117,
+  "state_code": "OD",
+  "lat": 19.76082,
+  "lon": 84.42997
+ },
+ {
+  "id": 1266924,
+  "name_en": "Kharhial",
+  "population": 15087,
+  "state_code": "OD",
+  "lat": 20.28845,
+  "lon": 82.7606
+ },
+ {
+  "id": 1264525,
+  "name_en": "Madugula",
+  "population": 14741,
+  "state_code": "AP",
+  "lat": 17.91589,
+  "lon": 82.81578
+ },
+ {
+  "id": 1268277,
+  "name_en": "Kamalapuram",
+  "population": 14677,
+  "state_code": "AP",
+  "lat": 14.5983,
+  "lon": 78.66948
+ },
+ {
+  "id": 1268024,
+  "name_en": "Kankipadu",
+  "population": 14616,
+  "state_code": "AP",
+  "lat": 16.4353,
+  "lon": 80.76715
+ },
+ {
+  "id": 1265913,
+  "name_en": "Kottavalasa",
+  "population": 14321,
+  "state_code": "AP",
+  "lat": 17.89044,
+  "lon": 83.1907
+ },
+ {
+  "id": 11268912,
+  "name_en": "Bhanumukkala",
+  "population": 14307,
+  "state_code": "AP",
+  "lat": 15.31189,
+  "lon": 78.22772
+ },
+ {
+  "id": 10849382,
+  "name_en": "Narayanapuram",
+  "population": 14227,
+  "state_code": "AP",
+  "lat": 14.70404,
+  "lon": 77.578
+ },
+ {
+  "id": 1258269,
+  "name_en": "Razole",
+  "population": 14204,
+  "state_code": "AP",
+  "lat": 16.47608,
+  "lon": 81.83912
+ },
+ {
+  "id": 1266422,
+  "name_en": "Kodala",
+  "population": 13965,
+  "state_code": "OD",
+  "lat": 19.62425,
+  "lon": 84.94075
+ },
+ {
+  "id": 13156762,
+  "name_en": "Prasadampadu",
+  "population": 13941,
+  "state_code": "AP",
+  "lat": 16.61224,
+  "lon": 80.68443
+ },
+ {
+  "id": 10849562,
+  "name_en": "Papampeta",
+  "population": 13850,
+  "state_code": "AP",
+  "lat": 14.68553,
+  "lon": 77.578
+ },
+ {
+  "id": 1272634,
+  "name_en": "Digapahandi",
+  "population": 13190,
+  "state_code": "OD",
+  "lat": 19.37275,
+  "lon": 84.57184
+ },
+ {
+  "id": 1253979,
+  "name_en": "Udala",
+  "population": 13152,
+  "state_code": "OD",
+  "lat": 21.57811,
+  "lon": 86.56676
+ },
+ {
+  "id": 1267112,
+  "name_en": "Khallikot",
+  "population": 13022,
+  "state_code": "OD",
+  "lat": 19.60908,
+  "lon": 85.08609
+ },
+ {
+  "id": 13494581,
+  "name_en": "Pratapsasan",
+  "population": 12830,
+  "state_code": "OD",
+  "lat": 20.20455,
+  "lon": 85.87172
+ },
+ {
+  "id": 10770306,
+  "name_en": "Peddaboddepalle",
+  "population": 12781,
+  "state_code": "AP",
+  "lat": 17.66064,
+  "lon": 82.62957
+ },
+ {
+  "id": 1253622,
+  "name_en": "Uthukkottai",
+  "population": 12740,
+  "state_code": "AP",
+  "lat": 13.33551,
+  "lon": 79.89
+ },
+ {
+  "id": 10787782,
+  "name_en": "Ponduru",
+  "population": 12640,
+  "state_code": "AP",
+  "lat": 18.34957,
+  "lon": 83.75649
+ },
+ {
+  "id": 13156761,
+  "name_en": "Thummalamenta",
+  "population": 12373,
+  "state_code": "AP",
+  "lat": 15.02765,
+  "lon": 78.02347
+ },
+ {
+  "id": 1262196,
+  "name_en": "Nagireddipalli",
+  "population": 12318,
+  "state_code": "AP",
+  "lat": 14.27005,
+  "lon": 79.10131
+ },
+ {
+  "id": 1268610,
+  "name_en": "Athmallik",
+  "population": 12298,
+  "state_code": "OD",
+  "lat": 20.72115,
+  "lon": 84.53514
+ },
+ {
+  "id": 1258714,
+  "name_en": "Rambha",
+  "population": 12111,
+  "state_code": "OD",
+  "lat": 19.51667,
+  "lon": 85.1
+ },
+ {
+  "id": 1277570,
+  "name_en": "Balimila",
+  "population": 12008,
+  "state_code": "OD",
+  "lat": 18.25167,
+  "lon": 82.10659
+ },
+ {
+  "id": 1271985,
+  "name_en": "Etikoppaka",
+  "population": 12000,
+  "state_code": "AP",
+  "lat": 17.5,
+  "lon": 82.73333
+ },
+ {
+  "id": 1275354,
+  "name_en": "Bolanikhodan",
+  "population": 11942,
+  "state_code": "OD",
+  "lat": 22.11312,
+  "lon": 85.33645
+ },
+ {
+  "id": 10774253,
+  "name_en": "Chittapari",
+  "population": 11796,
+  "state_code": "OD",
+  "lat": 18.24327,
+  "lon": 82.04991
+ },
+ {
+  "id": 1271621,
+  "name_en": "Ganjam",
+  "population": 11747,
+  "state_code": "OD",
+  "lat": 19.38705,
+  "lon": 85.05079
+ },
+ {
+  "id": 1277658,
+  "name_en": "Balagunda",
+  "population": 11708,
+  "state_code": "OD",
+  "lat": 22.1,
+  "lon": 85.36667
+ },
+ {
+  "id": 1274229,
+  "name_en": "Chikiti",
+  "population": 11645,
+  "state_code": "OD",
+  "lat": 19.20233,
+  "lon": 84.6145
+ },
+ {
+  "id": 13156760,
+  "name_en": "Bandarulanka",
+  "population": 11470,
+  "state_code": "AP",
+  "lat": 16.58282,
+  "lon": 81.96167
+ },
+ {
+  "id": 1261832,
+  "name_en": "Narayanavanam",
+  "population": 11432,
+  "state_code": "AP",
+  "lat": 13.42565,
+  "lon": 79.58881
+ },
+ {
+  "id": 13156759,
+  "name_en": "Modameedipalle",
+  "population": 11397,
+  "state_code": "AP",
+  "lat": 14.73595,
+  "lon": 78.56058
+ },
+ {
+  "id": 1253992,
+  "name_en": "Udayagiri",
+  "population": 11302,
+  "state_code": "OD",
+  "lat": 20.12416,
+  "lon": 84.36869
+ },
+ {
+  "id": 1276568,
+  "name_en": "Belaguntha",
+  "population": 11297,
+  "state_code": "OD",
+  "lat": 19.88249,
+  "lon": 84.63801
+ },
+ {
+  "id": 10778128,
+  "name_en": "Guntupalle",
+  "population": 11187,
+  "state_code": "AP",
+  "lat": 16.56794,
+  "lon": 80.54758
+ },
+ {
+  "id": 13156758,
+  "name_en": "Perur",
+  "population": 11127,
+  "state_code": "AP",
+  "lat": 13.61883,
+  "lon": 79.38255
+ },
+ {
+  "id": 11419015,
+  "name_en": "Bhuja Bhuja Nellore",
+  "population": 10927,
+  "state_code": "AP",
+  "lat": 14.39468,
+  "lon": 79.9399
+ },
+ {
+  "id": 1270798,
+  "name_en": "Gudlavalleru",
+  "population": 10902,
+  "state_code": "AP",
+  "lat": 16.35,
+  "lon": 81.05
+ },
+ {
+  "id": 1261844,
+  "name_en": "Narasingapuram",
+  "population": 10875,
+  "state_code": "AP",
+  "lat": 13.60759,
+  "lon": 79.31652
+ },
+ {
+  "id": 1258221,
+  "name_en": "Rengali",
+  "population": 10867,
+  "state_code": "OD",
+  "lat": 21.64602,
+  "lon": 84.05311
+ },
+ {
+  "id": 1275193,
+  "name_en": "Bramhabarada",
+  "population": 10721,
+  "state_code": "OD",
+  "lat": 20.7426,
+  "lon": 86.24454
+ },
+ {
+  "id": 7303913,
+  "name_en": "Pavuluru",
+  "population": 10524,
+  "state_code": "AP",
+  "lat": 15.85292,
+  "lon": 80.16468
+ },
+ {
+  "id": 13156757,
+  "name_en": "Yenumalapalle",
+  "population": 10482,
+  "state_code": "AP",
+  "lat": 14.14424,
+  "lon": 77.81685
+ },
+ {
+  "id": 1277247,
+  "name_en": "Banposh",
+  "population": 10430,
+  "state_code": "OD",
+  "lat": 22.24834,
+  "lon": 84.81044
+ },
+ {
+  "id": 1274822,
+  "name_en": "Champua",
+  "population": 10394,
+  "state_code": "OD",
+  "lat": 22.06734,
+  "lon": 85.66463
+ },
+ {
+  "id": 1269657,
+  "name_en": "Itamati",
+  "population": 10317,
+  "state_code": "OD",
+  "lat": 20.13777,
+  "lon": 85.15243
+ },
+ {
+  "id": 13156756,
+  "name_en": "Gavaravaram",
+  "population": 10029,
+  "state_code": "AP",
+  "lat": 16.71632,
+  "lon": 81.08308
+ },
+ {
+  "id": 1258904,
+  "name_en": "Raja Ranapur",
+  "population": 10001,
+  "state_code": "OD",
+  "lat": 20.06168,
+  "lon": 85.34364
+ },
+ {
+  "id": 7180617,
+  "name_en": "vadlamuru",
+  "population": 10000,
+  "state_code": "AP",
+  "lat": 17.09545,
+  "lon": 82.16565
+ },
+ {
+  "id": 11185522,
+  "name_en": "Kansbahal",
+  "population": 9923,
+  "state_code": "OD",
+  "lat": 22.21644,
+  "lon": 84.66348
+ },
+ {
+  "id": 1274761,
+  "name_en": "Chandbali",
+  "population": 9918,
+  "state_code": "OD",
+  "lat": 20.77519,
+  "lon": 86.74139
+ },
+ {
+  "id": 1275254,
+  "name_en": "Borigumma",
+  "population": 9785,
+  "state_code": "OD",
+  "lat": 19.04681,
+  "lon": 82.55318
+ },
+ {
+  "id": 1262671,
+  "name_en": "Muddanuru",
+  "population": 9775,
+  "state_code": "AP",
+  "lat": 14.68718,
+  "lon": 78.39309
+ },
+ {
+  "id": 10757563,
+  "name_en": "Bandbahal",
+  "population": 9735,
+  "state_code": "OD",
+  "lat": 21.74941,
+  "lon": 83.87757
+ },
+ {
+  "id": 1266503,
+  "name_en": "Kiri Buru",
+  "population": 9719,
+  "state_code": "OD",
+  "lat": 22.08333,
+  "lon": 85.35
+ },
+ {
+  "id": 12518860,
+  "name_en": "Kasinagar",
+  "population": 9684,
+  "state_code": "OD",
+  "lat": 18.85704,
+  "lon": 83.88088
+ },
+ {
+  "id": 1260414,
+  "name_en": "Paparhahandi",
+  "population": 9390,
+  "state_code": "OD",
+  "lat": 19.33333,
+  "lon": 82.51667
+ },
+ {
+  "id": 1263888,
+  "name_en": "Mandasa",
+  "population": 9287,
+  "state_code": "AP",
+  "lat": 18.8683,
+  "lon": 84.46296
+ },
+ {
+  "id": 1267964,
+  "name_en": "Kantilo",
+  "population": 9181,
+  "state_code": "OD",
+  "lat": 20.36152,
+  "lon": 85.19212
+ },
+ {
+  "id": 10787928,
+  "name_en": "Balaga",
+  "population": 9071,
+  "state_code": "AP",
+  "lat": 18.31545,
+  "lon": 83.89326
+ },
+ {
+  "id": 1265686,
+  "name_en": "Kumarmunda",
+  "population": 9043,
+  "state_code": "OD",
+  "lat": 22.3,
+  "lon": 84.78333
+ },
+ {
+  "id": 1267036,
+  "name_en": "Khandpara",
+  "population": 9038,
+  "state_code": "OD",
+  "lat": 20.26436,
+  "lon": 85.17673
+ },
+ {
+  "id": 6621344,
+  "name_en": "Puttaparthi",
+  "population": 9000,
+  "state_code": "AP",
+  "lat": 14.1652,
+  "lon": 77.8117
+ },
+ {
+  "id": 13494580,
+  "name_en": "Krushnanandapur",
+  "population": 8974,
+  "state_code": "OD",
+  "lat": 20.35868,
+  "lon": 86.26064
+ },
+ {
+  "id": 10778852,
+  "name_en": "Damonojodi",
+  "population": 8862,
+  "state_code": "OD",
+  "lat": 18.76323,
+  "lon": 82.91936
+ },
+ {
+  "id": 13494579,
+  "name_en": "Sayadpur",
+  "population": 8798,
+  "state_code": "OD",
+  "lat": 20.7279,
+  "lon": 86.40067
+ },
+ {
+  "id": 1259562,
+  "name_en": "Pippara",
+  "population": 8581,
+  "state_code": "AP",
+  "lat": 16.71667,
+  "lon": 81.55
+ },
+ {
+  "id": 1266094,
+  "name_en": "Korukollu",
+  "population": 8543,
+  "state_code": "AP",
+  "lat": 16.5,
+  "lon": 81.25
+ },
+ {
+  "id": 10778854,
+  "name_en": "Kurmur",
+  "population": 8504,
+  "state_code": "OD",
+  "lat": 18.75454,
+  "lon": 82.93787
+ },
+ {
+  "id": 1275443,
+  "name_en": "Bissamcuttack",
+  "population": 8399,
+  "state_code": "OD",
+  "lat": 19.51168,
+  "lon": 83.50596
+ },
+ {
+  "id": 8440767,
+  "name_en": "Tikarapara",
+  "population": 8346,
+  "state_code": "OD",
+  "lat": 19.62392,
+  "lon": 83.49543
+ },
+ {
+  "id": 11269054,
+  "name_en": "Dommaranandyala",
+  "population": 8337,
+  "state_code": "AP",
+  "lat": 14.86411,
+  "lon": 78.36408
+ },
+ {
+  "id": 1254925,
+  "name_en": "Tarabha",
+  "population": 8334,
+  "state_code": "OD",
+  "lat": 20.73252,
+  "lon": 83.67443
+ },
+ {
+  "id": 1255710,
+  "name_en": "Sorala",
+  "population": 8258,
+  "state_code": "OD",
+  "lat": 19.13084,
+  "lon": 84.75089
+ },
+ {
+  "id": 10767607,
+  "name_en": "Tangellamudi",
+  "population": 8250,
+  "state_code": "AP",
+  "lat": 16.72121,
+  "lon": 81.10517
+ },
+ {
+  "id": 10767340,
+  "name_en": "Sanivarapupeta",
+  "population": 8142,
+  "state_code": "AP",
+  "lat": 16.73047,
+  "lon": 81.07769
+ },
+ {
+  "id": 11420598,
+  "name_en": "Mangasamudram",
+  "population": 8113,
+  "state_code": "AP",
+  "lat": 13.2291,
+  "lon": 79.09087
+ },
+ {
+  "id": 13494578,
+  "name_en": "Nuapatna",
+  "population": 8057,
+  "state_code": "OD",
+  "lat": 20.44623,
+  "lon": 85.46905
+ },
+ {
+  "id": 12518877,
+  "name_en": "Arjyapalli Marine",
+  "population": 8001,
+  "state_code": "OD",
+  "lat": 19.3167,
+  "lon": 84.97373
+ },
+ {
+  "id": 13494577,
+  "name_en": "Suvani",
+  "population": 7993,
+  "state_code": "OD",
+  "lat": 19.13336,
+  "lon": 84.71512
+ },
+ {
+  "id": 1258620,
+  "name_en": "Rampur",
+  "population": 7892,
+  "state_code": "OD",
+  "lat": 20.19808,
+  "lon": 83.52049
+ },
+ {
+  "id": 13494576,
+  "name_en": "Erei",
+  "population": 7890,
+  "state_code": "OD",
+  "lat": 21.08714,
+  "lon": 86.52696
+ },
+ {
+  "id": 1274127,
+  "name_en": "Chintapalle",
+  "population": 7888,
+  "state_code": "AP",
+  "lat": 17.87117,
+  "lon": 82.35108
+ },
+ {
+  "id": 12261432,
+  "name_en": "Seethanagaram",
+  "population": 7816,
+  "state_code": "AP",
+  "lat": 17.1767,
+  "lon": 81.6925
+ },
+ {
+  "id": 13156755,
+  "name_en": "Yerrabalem",
+  "population": 7803,
+  "state_code": "AP",
+  "lat": 13.7046,
+  "lon": 80.0186
+ },
+ {
+  "id": 10770623,
+  "name_en": "Nakkapalle",
+  "population": 7603,
+  "state_code": "AP",
+  "lat": 17.40792,
+  "lon": 82.71663
+ },
+ {
+  "id": 11692058,
+  "name_en": "Jajang",
+  "population": 7482,
+  "state_code": "OD",
+  "lat": 21.93835,
+  "lon": 85.44248
+ },
+ {
+  "id": 13494575,
+  "name_en": "Gotamara",
+  "population": 7420,
+  "state_code": "OD",
+  "lat": 20.85828,
+  "lon": 85.20269
+ },
+ {
+  "id": 12522825,
+  "name_en": "Lathikata",
+  "population": 7405,
+  "state_code": "OD",
+  "lat": 22.13073,
+  "lon": 84.89008
+ },
+ {
+  "id": 1265761,
+  "name_en": "Kukkudakhandi",
+  "population": 7361,
+  "state_code": "OD",
+  "lat": 19.39361,
+  "lon": 84.755
+ },
+ {
+  "id": 1274055,
+  "name_en": "Chittarkonda",
+  "population": 7260,
+  "state_code": "OD",
+  "lat": 18.12533,
+  "lon": 82.1089
+ },
+ {
+  "id": 1270961,
+  "name_en": "Gopalpur",
+  "population": 7221,
+  "state_code": "OD",
+  "lat": 19.25861,
+  "lon": 84.90517
+ },
+ {
+  "id": 10789082,
+  "name_en": "Mulaguntapadu",
+  "population": 7145,
+  "state_code": "AP",
+  "lat": 15.26405,
+  "lon": 80.01956
+ },
+ {
+  "id": 13494574,
+  "name_en": "Bhakarsahi",
+  "population": 7110,
+  "state_code": "OD",
+  "lat": 20.18552,
+  "lon": 86.01029
+ },
+ {
+  "id": 1277344,
+  "name_en": "Bonaigarh",
+  "population": 7080,
+  "state_code": "OD",
+  "lat": 21.82189,
+  "lon": 84.952
+ },
+ {
+  "id": 13494573,
+  "name_en": "Lalsingi",
+  "population": 7078,
+  "state_code": "OD",
+  "lat": 19.94745,
+  "lon": 84.57111
+ },
+ {
+  "id": 13156754,
+  "name_en": "Chennamukkapalle",
+  "population": 7065,
+  "state_code": "AP",
+  "lat": 14.05954,
+  "lon": 78.76981
+ },
+ {
+  "id": 1273469,
+  "name_en": "Daringbarhi",
+  "population": 6995,
+  "state_code": "OD",
+  "lat": 19.90703,
+  "lon": 84.12408
+ },
+ {
+  "id": 1276974,
+  "name_en": "Barhagarh",
+  "population": 6982,
+  "state_code": "OD",
+  "lat": 19.64503,
+  "lon": 84.40791
+ },
+ {
+  "id": 1270818,
+  "name_en": "Gudari",
+  "population": 6931,
+  "state_code": "OD",
+  "lat": 19.34762,
+  "lon": 83.78128
+ },
+ {
+  "id": 1275689,
+  "name_en": "Bijepur",
+  "population": 6922,
+  "state_code": "OD",
+  "lat": 21.18926,
+  "lon": 83.46061
+ },
+ {
+  "id": 1255872,
+  "name_en": "Sohela",
+  "population": 6917,
+  "state_code": "OD",
+  "lat": 21.30153,
+  "lon": 83.39797
+ },
+ {
+  "id": 1273415,
+  "name_en": "Daspalla",
+  "population": 6906,
+  "state_code": "OD",
+  "lat": 20.33962,
+  "lon": 84.84723
+ },
+ {
+  "id": 13494572,
+  "name_en": "Balipatapur",
+  "population": 6898,
+  "state_code": "OD",
+  "lat": 19.93563,
+  "lon": 85.49677
+ },
+ {
+  "id": 10756350,
+  "name_en": "Khaliapali",
+  "population": 6865,
+  "state_code": "OD",
+  "lat": 21.36397,
+  "lon": 83.61641
+ },
+ {
+  "id": 11269055,
+  "name_en": "Moragudi",
+  "population": 6812,
+  "state_code": "AP",
+  "lat": 14.86259,
+  "lon": 78.37878
+ },
+ {
+  "id": 13156753,
+  "name_en": "Murakambattu",
+  "population": 6812,
+  "state_code": "AP",
+  "lat": 13.24631,
+  "lon": 79.11874
+ },
+ {
+  "id": 1266348,
+  "name_en": "Koira",
+  "population": 6763,
+  "state_code": "OD",
+  "lat": 21.90494,
+  "lon": 85.24208
+ },
+ {
+  "id": 12261433,
+  "name_en": "Pedda bhogili",
+  "population": 6733,
+  "state_code": "AP",
+  "lat": 18.6612,
+  "lon": 83.3784
+ },
+ {
+  "id": 13156752,
+  "name_en": "Kantabamsuguda",
+  "population": 6714,
+  "state_code": "AP",
+  "lat": 18.32264,
+  "lon": 82.88259
+ },
+ {
+  "id": 11269032,
+  "name_en": "Veparala",
+  "population": 6712,
+  "state_code": "AP",
+  "lat": 14.85718,
+  "lon": 78.34806
+ },
+ {
+  "id": 13494571,
+  "name_en": "Kandasar",
+  "population": 6668,
+  "state_code": "OD",
+  "lat": 20.84161,
+  "lon": 85.14254
+ },
+ {
+  "id": 9031033,
+  "name_en": "Sheragada",
+  "population": 6653,
+  "state_code": "OD",
+  "lat": 19.51301,
+  "lon": 84.60408
+ },
+ {
+  "id": 11268958,
+  "name_en": "Ramapuram",
+  "population": 6614,
+  "state_code": "AP",
+  "lat": 15.13819,
+  "lon": 78.11603
+ },
+ {
+  "id": 1270057,
+  "name_en": "Hiramandalam",
+  "population": 6603,
+  "state_code": "AP",
+  "lat": 18.67085,
+  "lon": 83.95054
+ },
+ {
+  "id": 12261414,
+  "name_en": "S. Rayavaram",
+  "population": 6568,
+  "state_code": "AP",
+  "lat": 17.4546,
+  "lon": 82.8062
+ },
+ {
+  "id": 13494570,
+  "name_en": "Anjira",
+  "population": 6561,
+  "state_code": "OD",
+  "lat": 20.82644,
+  "lon": 86.03353
+ },
+ {
+  "id": 13494569,
+  "name_en": "Bhapur",
+  "population": 6438,
+  "state_code": "OD",
+  "lat": 20.17419,
+  "lon": 86.00613
+ },
+ {
+  "id": 13494568,
+  "name_en": "Saranga",
+  "population": 6426,
+  "state_code": "OD",
+  "lat": 20.92552,
+  "lon": 85.26403
+ },
+ {
+  "id": 13494567,
+  "name_en": "Agastinuagan",
+  "population": 6411,
+  "state_code": "OD",
+  "lat": 19.37003,
+  "lon": 85.03428
+ },
+ {
+  "id": 10767343,
+  "name_en": "Satrampadu",
+  "population": 6393,
+  "state_code": "AP",
+  "lat": 16.70591,
+  "lon": 81.07382
+ },
+ {
+  "id": 13156751,
+  "name_en": "Chidiga",
+  "population": 6365,
+  "state_code": "AP",
+  "lat": 16.96295,
+  "lon": 82.21243
+ },
+ {
+  "id": 12518850,
+  "name_en": "Khatiguda",
+  "population": 6361,
+  "state_code": "OD",
+  "lat": 19.23752,
+  "lon": 82.78812
+ },
+ {
+  "id": 11691505,
+  "name_en": "Rengali",
+  "population": 6345,
+  "state_code": "OD",
+  "lat": 21.25443,
+  "lon": 85.03296
+ },
+ {
+  "id": 1255450,
+  "name_en": "Sunakhala",
+  "population": 6299,
+  "state_code": "OD",
+  "lat": 20.16677,
+  "lon": 85.33227
+ },
+ {
+  "id": 1276970,
+  "name_en": "Badamba",
+  "population": 6284,
+  "state_code": "OD",
+  "lat": 20.41912,
+  "lon": 85.34463
+ },
+ {
+  "id": 13156750,
+  "name_en": "Vaddeswaram",
+  "population": 6275,
+  "state_code": "AP",
+  "lat": 16.44734,
+  "lon": 80.61273
+ },
+ {
+  "id": 13494566,
+  "name_en": "Dungamal",
+  "population": 6271,
+  "state_code": "OD",
+  "lat": 19.68029,
+  "lon": 85.18205
+ },
+ {
+  "id": 1264718,
+  "name_en": "Loisinga",
+  "population": 6220,
+  "state_code": "OD",
+  "lat": 20.86667,
+  "lon": 83.51667
+ },
+ {
+  "id": 13494565,
+  "name_en": "Mukhiguda",
+  "population": 6155,
+  "state_code": "OD",
+  "lat": 19.44019,
+  "lon": 82.85051
+ },
+ {
+  "id": 11184819,
+  "name_en": "Cherlopalle",
+  "population": 6143,
+  "state_code": "AP",
+  "lat": 13.61366,
+  "lon": 79.36523
+ },
+ {
+  "id": 13494564,
+  "name_en": "Budhapanka",
+  "population": 6129,
+  "state_code": "OD",
+  "lat": 20.85826,
+  "lon": 85.24196
+ },
+ {
+  "id": 13156749,
+  "name_en": "Tada Khandrika",
+  "population": 6123,
+  "state_code": "AP",
+  "lat": 13.58855,
+  "lon": 80.03368
+ },
+ {
+  "id": 13494563,
+  "name_en": "Pathar",
+  "population": 6072,
+  "state_code": "OD",
+  "lat": 19.64213,
+  "lon": 85.16736
+ },
+ {
+  "id": 11692800,
+  "name_en": "Jhompra",
+  "population": 6064,
+  "state_code": "OD",
+  "lat": 21.82547,
+  "lon": 85.56839
+ },
+ {
+  "id": 1260067,
+  "name_en": "Patrapur",
+  "population": 6059,
+  "state_code": "OD",
+  "lat": 19.13198,
+  "lon": 84.57036
+ },
+ {
+  "id": 13494562,
+  "name_en": "Godiputamatiapara",
+  "population": 5967,
+  "state_code": "OD",
+  "lat": 20.1392,
+  "lon": 85.70286
+ },
+ {
+  "id": 1258724,
+  "name_en": "Ramapuram",
+  "population": 5961,
+  "state_code": "AP",
+  "lat": 15.28749,
+  "lon": 77.86722
+ },
+ {
+  "id": 13156748,
+  "name_en": "Kanapaka",
+  "population": 5960,
+  "state_code": "AP",
+  "lat": 18.11457,
+  "lon": 83.37431
+ },
+ {
+  "id": 1259003,
+  "name_en": "Raighar",
+  "population": 5936,
+  "state_code": "OD",
+  "lat": 19.88779,
+  "lon": 82.07177
+ },
+ {
+  "id": 10784527,
+  "name_en": "Chintalavalasa",
+  "population": 5921,
+  "state_code": "AP",
+  "lat": 18.06701,
+  "lon": 83.40907
+ },
+ {
+  "id": 1261153,
+  "name_en": "Nuahata",
+  "population": 5920,
+  "state_code": "OD",
+  "lat": 20.83586,
+  "lon": 85.23411
+ },
+ {
+  "id": 13156747,
+  "name_en": "Jarjapupeta",
+  "population": 5761,
+  "state_code": "AP",
+  "lat": 18.18071,
+  "lon": 83.44025
+ },
+ {
+  "id": 1277311,
+  "name_en": "Bangomunda",
+  "population": 5759,
+  "state_code": "OD",
+  "lat": 20.34302,
+  "lon": 82.91136
+ },
+ {
+  "id": 1260696,
+  "name_en": "Pal Lahara",
+  "population": 5749,
+  "state_code": "OD",
+  "lat": 21.43354,
+  "lon": 85.19184
+ },
+ {
+  "id": 1271791,
+  "name_en": "Gajapatinagaram",
+  "population": 5687,
+  "state_code": "AP",
+  "lat": 18.27936,
+  "lon": 83.33647
+ },
+ {
+  "id": 1265721,
+  "name_en": "Kullada",
+  "population": 5645,
+  "state_code": "OD",
+  "lat": 19.96939,
+  "lon": 84.6329
+ },
+ {
+  "id": 13494561,
+  "name_en": "Majhihara",
+  "population": 5598,
+  "state_code": "OD",
+  "lat": 20.17535,
+  "lon": 86.00005
+ },
+ {
+  "id": 1274719,
+  "name_en": "Chandpur",
+  "population": 5565,
+  "state_code": "OD",
+  "lat": 19.94307,
+  "lon": 85.40722
+ },
+ {
+  "id": 10767998,
+  "name_en": "Dwaraka Tirumala",
+  "population": 5543,
+  "state_code": "AP",
+  "lat": 16.95427,
+  "lon": 81.25585
+ },
+ {
+  "id": 13494560,
+  "name_en": "Belagachhia",
+  "population": 5516,
+  "state_code": "OD",
+  "lat": 20.4233,
+  "lon": 85.85228
+ },
+ {
+  "id": 11719751,
+  "name_en": "Kandragadia",
+  "population": 5505,
+  "state_code": "OD",
+  "lat": 21.00724,
+  "lon": 85.73745
+ },
+ {
+  "id": 10756353,
+  "name_en": "Bardol",
+  "population": 5441,
+  "state_code": "OD",
+  "lat": 21.38189,
+  "lon": 83.59388
+ },
+ {
+  "id": 13494559,
+  "name_en": "Badmal",
+  "population": 5431,
+  "state_code": "OD",
+  "lat": 20.38049,
+  "lon": 83.2864
+ },
+ {
+  "id": 11184613,
+  "name_en": "Odagaon",
+  "population": 5401,
+  "state_code": "OD",
+  "lat": 20.01625,
+  "lon": 84.98719
+ },
+ {
+  "id": 10784526,
+  "name_en": "Malicherla",
+  "population": 5229,
+  "state_code": "AP",
+  "lat": 18.07098,
+  "lon": 83.40023
+ },
+ {
+  "id": 1262926,
+  "name_en": "Mohana",
+  "population": 5197,
+  "state_code": "OD",
+  "lat": 19.44273,
+  "lon": 84.26128
+ },
+ {
+  "id": 11416577,
+  "name_en": "Mangampeta",
+  "population": 5175,
+  "state_code": "AP",
+  "lat": 14.01578,
+  "lon": 79.3137
+ },
+ {
+  "id": 1272587,
+  "name_en": "Diguvametta",
+  "population": 5166,
+  "state_code": "AP",
+  "lat": 15.39507,
+  "lon": 78.8293
+ },
+ {
+  "id": 13494558,
+  "name_en": "Badakodanda",
+  "population": 5137,
+  "state_code": "OD",
+  "lat": 19.93739,
+  "lon": 84.55062
+ },
+ {
+  "id": 13645558,
+  "name_en": "Survepalle Bit ? II",
+  "population": 5129,
+  "state_code": "AP",
+  "lat": 14.26937,
+  "lon": 79.96197
+ },
+ {
+  "id": 1269178,
+  "name_en": "Joshipur",
+  "population": 5101,
+  "state_code": "OD",
+  "lat": 21.96265,
+  "lon": 86.07509
+ },
+ {
+  "id": 13156746,
+  "name_en": "Arempudi",
+  "population": 5073,
+  "state_code": "AP",
+  "lat": 17.26963,
+  "lon": 82.37514
+ },
+ {
+  "id": 1255594,
+  "name_en": "Subulia",
+  "population": 5072,
+  "state_code": "OD",
+  "lat": 20.89586,
+  "lon": 84.16934
+ },
+ {
+  "id": 1268418,
+  "name_en": "Kaliapani",
+  "population": 5028,
+  "state_code": "OD",
+  "lat": 21.05172,
+  "lon": 85.77722
+ },
+ {
+  "id": 1260640,
+  "name_en": "Paluru",
+  "population": 5019,
+  "state_code": "OD",
+  "lat": 19.46667,
+  "lon": 85.13333
+ },
+ {
+  "id": 13494557,
+  "name_en": "Dadhapatna",
+  "population": 5005,
+  "state_code": "OD",
+  "lat": 20.41129,
+  "lon": 85.82704
+ },
+ {
+  "id": 13156745,
+  "name_en": "Bowluvada",
+  "population": 5001,
+  "state_code": "AP",
+  "lat": 17.74546,
+  "lon": 82.98858
+ },
+ {
+  "id": 13494556,
+  "name_en": "Makundapur",
+  "population": 4983,
+  "state_code": "OD",
+  "lat": 19.60947,
+  "lon": 84.67521
+ },
+ {
+  "id": 10788551,
+  "name_en": "Tummikapalle",
+  "population": 4911,
+  "state_code": "AP",
+  "lat": 17.91346,
+  "lon": 83.179
+ },
+ {
+  "id": 1276062,
+  "name_en": "Bhatli",
+  "population": 4865,
+  "state_code": "OD",
+  "lat": 21.45819,
+  "lon": 83.53588
+ },
+ {
+  "id": 13494555,
+  "name_en": "Borigam",
+  "population": 4855,
+  "state_code": "OD",
+  "lat": 19.35851,
+  "lon": 84.80611
+ },
+ {
+  "id": 1258752,
+  "name_en": "Ramagiri Udayagiri",
+  "population": 4851,
+  "state_code": "OD",
+  "lat": 19.16039,
+  "lon": 84.14265
+ },
+ {
+  "id": 1254024,
+  "name_en": "Tushara",
+  "population": 4823,
+  "state_code": "OD",
+  "lat": 20.48963,
+  "lon": 83.48399
+ },
+ {
+  "id": 9035736,
+  "name_en": "Ketakipatana",
+  "population": 4708,
+  "state_code": "OD",
+  "lat": 19.89271,
+  "lon": 85.81582
+ },
+ {
+  "id": 1268285,
+  "name_en": "Kalyansingapuram",
+  "population": 4660,
+  "state_code": "OD",
+  "lat": 19.50634,
+  "lon": 83.30917
+ },
+ {
+  "id": 13494554,
+  "name_en": "Indipur",
+  "population": 4656,
+  "state_code": "OD",
+  "lat": 20.66067,
+  "lon": 85.52475
+ },
+ {
+  "id": 13156744,
+  "name_en": "Upper Sileru Project Site Camp",
+  "population": 4632,
+  "state_code": "AP",
+  "lat": 18.05848,
+  "lon": 82.03254
+ },
+ {
+  "id": 13494553,
+  "name_en": "Kanheipur",
+  "population": 4611,
+  "state_code": "OD",
+  "lat": 20.57953,
+  "lon": 85.97976
+ },
+ {
+  "id": 13494552,
+  "name_en": "Ramgarh",
+  "population": 4545,
+  "state_code": "OD",
+  "lat": 20.56256,
+  "lon": 85.99112
+ },
+ {
+  "id": 13156743,
+  "name_en": "Mulakuddu",
+  "population": 4513,
+  "state_code": "AP",
+  "lat": 17.91609,
+  "lon": 83.4488
+ },
+ {
+  "id": 1268606,
+  "name_en": "Kaipadar",
+  "population": 4512,
+  "state_code": "OD",
+  "lat": 20.13478,
+  "lon": 85.55338
+ },
+ {
+  "id": 1254991,
+  "name_en": "Tangi",
+  "population": 4471,
+  "state_code": "OD",
+  "lat": 19.93333,
+  "lon": 85.4
+ },
+ {
+  "id": 10282670,
+  "name_en": "Tensa",
+  "population": 4469,
+  "state_code": "OD",
+  "lat": 21.87279,
+  "lon": 85.17127
+ },
+ {
+  "id": 1259497,
+  "name_en": "Pittal",
+  "population": 4458,
+  "state_code": "OD",
+  "lat": 19.53221,
+  "lon": 84.72983
+ },
+ {
+  "id": 13494551,
+  "name_en": "Jorada",
+  "population": 4428,
+  "state_code": "OD",
+  "lat": 20.91742,
+  "lon": 85.1227
+ },
+ {
+  "id": 13494550,
+  "name_en": "Venkatraipur",
+  "population": 4401,
+  "state_code": "OD",
+  "lat": 19.25927,
+  "lon": 84.888
+ },
+ {
+  "id": 10757202,
+  "name_en": "Bundia",
+  "population": 4304,
+  "state_code": "OD",
+  "lat": 21.78062,
+  "lon": 83.91393
+ },
+ {
+  "id": 13494549,
+  "name_en": "Kulad",
+  "population": 4256,
+  "state_code": "OD",
+  "lat": 20.84253,
+  "lon": 85.16665
+ },
+ {
+  "id": 13494548,
+  "name_en": "Mundamarai",
+  "population": 4253,
+  "state_code": "OD",
+  "lat": 19.63928,
+  "lon": 84.60133
+ },
+ {
+  "id": 1273673,
+  "name_en": "Daitari",
+  "population": 4146,
+  "state_code": "OD",
+  "lat": 21.1,
+  "lon": 85.75
+ },
+ {
+  "id": 13494547,
+  "name_en": "Danara",
+  "population": 4144,
+  "state_code": "OD",
+  "lat": 20.94571,
+  "lon": 85.09686
+ },
+ {
+  "id": 13494546,
+  "name_en": "Kabatabandha",
+  "population": 4080,
+  "state_code": "OD",
+  "lat": 20.87566,
+  "lon": 86.02498
+ },
+ {
+  "id": 13494545,
+  "name_en": "Charibatia",
+  "population": 4016,
+  "state_code": "OD",
+  "lat": 20.55887,
+  "lon": 85.93883
+ },
+ {
+  "id": 10281811,
+  "name_en": "Chainpal",
+  "population": 3613,
+  "state_code": "OD",
+  "lat": 20.88556,
+  "lon": 85.21919
+ },
+ {
+  "id": 1252783,
+  "name_en": "Yarada",
+  "population": 3406,
+  "state_code": "AP",
+  "lat": 17.65872,
+  "lon": 83.27419
+ },
+ {
+  "id": 13645557,
+  "name_en": "Lebur Bit ? I",
+  "population": 3148,
+  "state_code": "AP",
+  "lat": 14.50407,
+  "lon": 80.08263
+ },
+ {
+  "id": 8436374,
+  "name_en": "Govindapuram",
+  "population": 3000,
+  "state_code": "AP",
+  "lat": 16.15477,
+  "lon": 80.10279
+ }
+]
