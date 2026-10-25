@@ -1,25 +1,43 @@
-version: "3.9"
-
 # ──────────────────────────────────────────────────────────────────────────────
-# FloodGuard — Docker Compose (Local Development)
+# FloodGuard Andhra MVP — Docker Compose (Local Development)
+# db (PostGIS) is shared; minio stands in for S3/CloudFront (see F-1 in the
+# spec's own fallback plan). The old Django/Redis/Celery services (web,
+# worker, beat, redis) are retired — see FLOODGUARD_ANDHRA_MVP.md.
 # ──────────────────────────────────────────────────────────────────────────────
 
-x-backend-env: &backend-env
-  SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-prod}
-  DEBUG: ${DEBUG:-True}
-  ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
-  DATABASE_URL: ${DATABASE_URL:-postgis://floodguard:floodguard@db:5432/floodguard}
-  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-  FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH:-}
-  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
-  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-  AWS_STORAGE_BUCKET_NAME: ${AWS_STORAGE_BUCKET_NAME:-floodguard-media}
-  AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-}
-  AWS_S3_REGION_NAME: ${AWS_S3_REGION_NAME:-auto}
-  ECMWF_API_KEY: ${ECMWF_API_KEY:-}
+x-api-env: &api-env
+  APP_ENV: ${APP_ENV:-dev}
+  DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://floodguard:floodguard@db:5432/floodguard}
+  MIGRATOR_DATABASE_URL: ${MIGRATOR_DATABASE_URL:-postgresql+psycopg://floodguard:floodguard@db:5432/floodguard}
+  DATA_DIR: ${DATA_DIR:-/srv/data}
+  S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
+  S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://localhost:9000}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:-floodguard}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:-floodguard-minio-dev}
+  PHOTO_BUCKET: ${PHOTO_BUCKET:-fg-andhra-photos-dev}
+  FRAMES_BUCKET: ${FRAMES_BUCKET:-fg-andhra-frames-dev}
+  GFS_BUCKET_URL: ${GFS_BUCKET_URL:-https://noaa-gfs-bdp-pds.s3.amazonaws.com}
+  ECMWF_SOURCE: ${ECMWF_SOURCE:-aws}
+  GDACS_BASE_URL: ${GDACS_BASE_URL:-https://www.gdacs.org/gdacsapi/api}
+  WEATHER_BBOX: ${WEATHER_BBOX:-76,8,92,24}
+  MAP_STYLE_URL: ${MAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}
+  DEVICE_HASH_KEY: ${DEVICE_HASH_KEY:-dev-device-hash-key-change-me}
+  IP_HASH_KEY: ${IP_HASH_KEY:-dev-ip-hash-key-change-me}
+  SESSION_SECRET: ${SESSION_SECRET:-dev-session-secret-change-me}
+  ALERT_TEMPLATE_VERSION: ${ALERT_TEMPLATE_VERSION:-2026-10-v1}
+  PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:5173}
+  CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+  FEATURE_ALERTS: ${FEATURE_ALERTS:-true}
+  FEATURE_ALERT_SHARING: ${FEATURE_ALERT_SHARING:-true}
+  FEATURE_PUSH: ${FEATURE_PUSH:-false}
+  FEATURE_OFFICIAL_PUSH: ${FEATURE_OFFICIAL_PUSH:-false}
+  FEATURE_REPORTS_ENABLED: ${FEATURE_REPORTS_ENABLED:-true}
+  FEATURE_CYCLONE: ${FEATURE_CYCLONE:-true}
+  FEATURE_LIVE_MAP_ANIMATION: ${FEATURE_LIVE_MAP_ANIMATION:-true}
+  FEATURE_INPUT_CAPTURE_FALLBACK: ${FEATURE_INPUT_CAPTURE_FALLBACK:-true}
 
 services:
-  # ── PostGIS database ─────────────────────────────────────────────────────────
+  # ── PostGIS database (shared) ────────────────────────────────────────────────
   db:
     image: postgis/postgis:16-3.4
     restart: unless-stopped
@@ -38,94 +56,94 @@ services:
       retries: 5
       start_period: 20s
 
-  # ── Redis (Celery broker + cache) ────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
+  # ── MinIO (S3-compatible; stands in for S3 + CloudFront locally) ────────────
+  minio:
+    image: minio/minio:latest
     restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-floodguard}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-floodguard-minio-dev}
     volumes:
-      - redis_data:/data
+      - minio_data:/data
     ports:
-      - "6379:6379"
+      - "9010:9000"
+      - "9011:9001"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "mc", "ready", "local"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
-  # ── Django web server ─────────────────────────────────────────────────────────
-  web:
+  # NOTE: the standalone minio/mc image was pulled from Docker Hub by MinIO;
+  # the minio/minio image still bundles the mc client, so we use that instead.
+  minio-init:
+    image: minio/minio:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - sh
+      - -c
+      - >
+        mc alias set local http://minio:9000 ${S3_ACCESS_KEY:-floodguard} ${S3_SECRET_KEY:-floodguard-minio-dev} &&
+        mc mb -p local/${PHOTO_BUCKET:-fg-andhra-photos-dev} &&
+        mc mb -p local/${FRAMES_BUCKET:-fg-andhra-frames-dev} &&
+        mc anonymous set download local/${FRAMES_BUCKET:-fg-andhra-frames-dev} &&
+        mc anonymous set none local/${PHOTO_BUCKET:-fg-andhra-photos-dev} &&
+        exit 0
+
+  # ── FastAPI API ───────────────────────────────────────────────────────────────
+  api:
     build:
-      context: ./backend
+      context: ./api
       dockerfile: Dockerfile
     restart: unless-stopped
     command: >
-      sh -c "python manage.py wait_for_db &&
-             python manage.py migrate --noinput &&
-             python manage.py runserver 0.0.0.0:8000"
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
-      <<: *backend-env
+      <<: *api-env
     volumes:
-      - ./backend:/app
-      - media_files:/app/media
+      - ./api:/app
+      - api_data:/srv/data
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
-      redis:
+      minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health/ || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/v1/livez || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  # ── Celery worker ─────────────────────────────────────────────────────────────
+  # ── Worker (APScheduler: ingest, clustering, alerts, retention) ─────────────
   worker:
     build:
-      context: ./backend
+      context: ./api
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: celery -A floodguard worker -l INFO --concurrency=4
+    command: python -m worker.main
     environment:
-      <<: *backend-env
+      <<: *api-env
     volumes:
-      - ./backend:/app
-      - media_files:/app/media
+      - ./api:/app
+      - api_data:/srv/data
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "celery -A floodguard inspect ping -d celery@$$HOSTNAME"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  # ── Celery beat scheduler ─────────────────────────────────────────────────────
-  beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    command: celery -A floodguard beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    environment:
-      <<: *backend-env
-    volumes:
-      - ./backend:/app
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
+      minio:
         condition: service_healthy
 
 volumes:
   postgres_data:
     driver: local
-  redis_data:
+  minio_data:
     driver: local
-  media_files:
+  api_data:
     driver: local
