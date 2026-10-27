@@ -10,8 +10,8 @@
   "states": {
     "AP": [
       { "id": "ap-112", "label_en": "National emergency number", "label_te": "జాతీయ అత్యవసర నంబర్", "number": "112", "verified_on": null },
-      { "id": "ap-sdma", "label_en": "AP State Disaster Management Authority", "label_te": "ఆంధ్రప్రదేశ్ రాష్ట్ర విపత్తు నిర్వహణ సంస్థ", "number": null, "verified_on": null },
-      { "id": "ap-district-1077", "label_en": "District control room (candidate)", "label_te": "జిల్లా నియంత్రణ గది (అభ్యర్థి)", "number": "1077", "verified_on": null },
+      { "id": "ap-sdma", "label_en": "AP State Disaster Management Authority", "label_te": "ఆంధ్రప్రదేశ్ రాష్ట్ర విపత్తు నిర్వహణ సంస్థ", "number": "1070", "verified_on": null },
+      { "id": "ap-toll-free", "label_en": "Toll-free emergency helpline", "label_te": "టోల్ ఫ్రీ అత్యవసర హెల్ప్‌లైన్", "number": "18004250101", "verified_on": null },
       { "id": "ap-ambulance", "label_en": "Ambulance", "label_te": "అంబులెన్స్", "number": "108", "verified_on": null },
       { "id": "ap-fire", "label_en": "Fire", "label_te": "అగ్నిమాపక దళం", "number": "101", "verified_on": null }
     ],
